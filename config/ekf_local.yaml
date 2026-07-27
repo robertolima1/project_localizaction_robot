@@ -1,0 +1,69 @@
+# EKF local (robot_localization) — fusão de odometria de rodas (encoders) + IMU.
+# Saída: /odometry/filtered. Documentação de qual nó publica cada TF: ver README,
+# seção "Árvore TF" — aqui só o ekf_localization_node publica odom -> base_footprint
+# (o plugin libgazebo_ros_diff_drive tem publishOdomTF=false, ver agrobot.gazebo.xacro).
+
+frequency: 30                    # Hz — ver seção 1 do prompt
+sensor_timeout: 0.2
+two_d_mode: true                 # robô terrestre, plano único (sem z, roll, pitch)
+publish_tf: true
+
+odom_frame: odom
+base_link_frame: base_footprint  # ATENÇÃO: no TurtleBot3 é base_footprint, não base_link
+                                  # (ver 4.2(c) — misturar os dois é a causa nº1 de erro
+                                  # silencioso de alguns centímetros de offset)
+world_frame: odom                # não há EKF global, então world_frame == odom_frame
+map_frame: map                   # declarado por exigência do robot_localization, mas
+                                  # não usado (não existe segundo EKF nem AMCL)
+
+# --- Rodas (/odom) ---
+# Fundir apenas VELOCIDADES (vx, vyaw), nunca x/y/yaw absolutos daqui: a pose
+# absoluta do /odom já é dead reckoning puro, então fundi-la brigaria com o
+# yaw absoluto que vem da IMU (duas fontes competindo pelo mesmo estado).
+odom0: /odom
+odom0_config: [false, false, false,   # x,     y,     z      -> não fundir (dead reckoning puro)
+               false, false, false,   # roll,  pitch, yaw    -> não fundir (yaw vem da IMU)
+               true,  false, false,   # vx,    vy,    vz     -> fundir vx (diferencial não tem vy real)
+               false, false, true,    # vroll, vpitch, vyaw  -> fundir vyaw (giro em torno de z)
+               false, false, false]   # ax,    ay,    az     -> odometria não mede aceleração
+odom0_differential: false
+odom0_queue_size: 10
+
+# --- IMU (/imu) ---
+# Yaw absoluto (corrige a deriva de orientação do encoder) + vyaw (giroscópio,
+# mais responsivo que o yaw absoluto sozinho) + aceleração longitudinal (ax).
+imu0: /imu
+imu0_config: [false, false, false,   # x,     y,     z      -> IMU não mede posição
+              false, false, true,    # roll,  pitch, yaw    -> fundir yaw (única referência absoluta)
+              false, false, false,   # vx,    vy,    vz     -> velocidade linear vem do encoder, não da IMU
+              false, false, true,    # vroll, vpitch, vyaw  -> fundir vyaw (giroscópio)
+              true,  false, false]   # ax,    ay,    az     -> fundir ax (aceleração longitudinal)
+imu0_differential: false
+imu0_relative: true               # yaw relativo ao heading inicial, não a um norte absoluto
+imu0_remove_gravitational_acceleration: true
+imu0_queue_size: 10
+
+# --- Ruído de processo ---
+# Coerente com o ruído de sensor escolhido em agrobot.gazebo.xacro (4.2d):
+# a IMU usa um único gaussianNoise=0.01 (rad/s no giro, m/s² no acelerômetro —
+# limitação do plugin libgazebo_ros_imu.so, documentada no xacro). Por isso o
+# processo de yaw/vyaw (índices 5 e 11) usa um processo mais permissivo que o
+# default de exemplo do robot_localization, para não subestimar quanto a
+# orientação real pode variar entre atualizações do filtro; x/y (índices 0,1)
+# ficam com valor moderado, já que são só integrados a partir de vx (não há
+# medição direta de posição em nenhuma fonte).
+process_noise_covariance: [0.05, 0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0.05, 0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0.06, 0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0.03, 0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0.03, 0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0.08, 0,     0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0.025, 0,     0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0.025, 0,    0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0.04, 0,    0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0.01, 0,    0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0.01, 0,    0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0.05, 0,    0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0.02, 0,    0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0.02, 0,
+                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0.02]

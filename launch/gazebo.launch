@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!-- Sobe o Gazebo com o mundo do campo agrícola e spawna o agrobot a partir
+     do xacro local (agrobot.urdf.xacro), sem depender de TURTLEBOT3_MODEL:
+     o xacro já está dentro deste pacote. -->
+<launch>
+  <arg name="mundo" default="$(find projeto_agrobot_uwb)/worlds/campo_agricola.world"/>
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="0.0"/>
+  <arg name="yaw" default="0.0"/>
+  <arg name="gui" default="true"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg mundo)"/>
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
+
+  <param name="robot_description"
+         command="$(find xacro)/xacro --inorder $(find projeto_agrobot_uwb)/urdf/agrobot.urdf.xacro"/>
+
+  <node name="spawn_agrobot" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-urdf -model agrobot -param robot_description
+              -x $(arg x) -y $(arg y) -z 0.01 -Y $(arg yaw)"/>
+</launch>

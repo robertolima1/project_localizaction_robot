@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!--
+  Nó de teleop lê o teclado em modo raw (termios/tty) e precisa de um
+  terminal interativo de verdade — dentro do roslaunch normal, stdin não
+  chega até o processo do jeito que o termios espera. Como o ambiente já
+  tem WSLg/X server (confirmado antes de gerar este pacote), uso
+  launch-prefix="xterm -e" para abrir uma janela xterm própria só para o
+  teleop, em vez de exigir um segundo terminal manual. Se este ambiente não
+  tiver X server, rode com teleop:=false e chame
+  `rosrun projeto_agrobot_uwb teleop_teclado.py` manualmente num terminal.
+-->
+<launch>
+  <arg name="taxa" default="20"/>
+  <arg name="aceleracao" default="1.0"/>
+  <arg name="watchdog" default="0.5"/>
+
+  <node pkg="projeto_agrobot_uwb" type="teleop_teclado.py" name="teleop_teclado"
+        launch-prefix="xterm -e" output="screen">
+    <param name="vel_linear_max" value="0.22"/>
+    <param name="vel_angular_max" value="2.84"/>
+    <param name="aceleracao" value="$(arg aceleracao)"/>
+    <param name="taxa" value="$(arg taxa)"/>
+    <param name="watchdog" value="$(arg watchdog)"/>
+  </node>
+</launch>

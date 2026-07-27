@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- robot_state_publisher (TF das juntas fixas/rodas) + RViz opcional. -->
+<launch>
+  <arg name="rviz" default="true"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find projeto_agrobot_uwb)/rviz/agrobot.rviz"/>
+  </group>
+</launch>

@@ -1,0 +1,25 @@
+# Bytecode Python (scripts/__pycache__, etc.)
+__pycache__/
+*.pyc
+
+# Gravações de rosbag (seção "Gravando um percurso" do README) — geralmente
+# pesadas demais para versionar no git.
+*.bag
+*.bag.active
+
+# Saída do rosrun tf2_tools view_frames.py
+frames.gv
+frames.pdf
+
+# Arquivos de espaço de build/devel/install do catkin, caso este pacote
+# algum dia seja versionado a partir da raiz do workspace em vez de
+# ~/catkin_ws/src/projeto_agrobot_uwb.
+/build/
+/devel/
+/install/
+/.catkin_workspace
+.catkin_tools/
+
+# Editor / IDE
+.vscode/
+*.swp

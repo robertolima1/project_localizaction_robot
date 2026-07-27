@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+<!--
+  Cópia de turtlebot3_burger.gazebo.xacro (pacote turtlebot3_description),
+  com as correções obrigatórias da seção 4.2 do prompt para uso com EKF
+  (robot_localization). Ver comentários pontuais abaixo em cada bloco alterado.
+-->
+<robot name="turtlebot3_burger_sim" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="laser_visual" default="false"/>
+  <xacro:arg name="imu_visual"   default="false"/>
+
+  <gazebo reference="base_link">
+    <material>Gazebo/DarkGrey</material>
+  </gazebo>
+
+  <gazebo reference="wheel_left_link">
+    <mu1>0.1</mu1>
+    <mu2>0.1</mu2>
+    <kp>500000.0</kp>
+    <kd>10.0</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>0.1</maxVel>
+    <fdir1>1 0 0</fdir1>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+
+  <gazebo reference="wheel_right_link">
+    <mu1>0.1</mu1>
+    <mu2>0.1</mu2>
+    <kp>500000.0</kp>
+    <kd>10.0</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>0.1</maxVel>
+    <fdir1>1 0 0</fdir1>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+
+  <gazebo reference="caster_back_link">
+    <mu1>0.1</mu1>
+    <mu2>0.1</mu2>
+    <kp>1000000.0</kp>
+    <kd>100.0</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>1.0</maxVel>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+
+  <!-- update_rate aqui é só metadado do <sensor>: o plugin usado abaixo
+       (libgazebo_ros_imu.so) é um plugin de MODELO, não de sensor, e quem
+       de fato controla a taxa de publicação é o <updateRate> dentro do
+       próprio <plugin> (ver comentário lá embaixo). -->
+  <gazebo reference="imu_link">
+    <sensor type="imu" name="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>$(arg imu_visual)</visualize>
+    </sensor>
+    <material>Gazebo/FlatBlack</material>
+  </gazebo>
+
+  <!-- (a) publishOdomTF: false (era true).
+       Correção 4.2(a): com true, o plugin publica odom->base_footprint ao
+       mesmo tempo que o EKF, e a TF fica oscilando entre as duas fontes.
+       Só o ekf_localization_node pode publicar essa transformada. -->
+  <!-- (b) odometrySource: encoder (era world).
+       Correção 4.2(b): com "world" o Gazebo entrega pose real (ground truth)
+       em /odom, sem deriva nenhuma — o EKF não teria o que corrigir. Com
+       "encoder", a odometria é integrada a partir das rodas e deriva de
+       forma realista, dando sentido ao projeto. -->
+  <gazebo>
+    <plugin name="turtlebot3_burger_controller" filename="libgazebo_ros_diff_drive.so">
+      <commandTopic>cmd_vel</commandTopic>
+      <odometryTopic>odom</odometryTopic>
+      <odometryFrame>odom</odometryFrame>
+      <odometrySource>encoder</odometrySource>
+      <publishOdomTF>false</publishOdomTF>
+      <robotBaseFrame>base_footprint</robotBaseFrame>
+      <publishWheelTF>false</publishWheelTF>
+      <publishTf>true</publishTf>
+      <publishWheelJointState>true</publishWheelJointState>
+      <legacyMode>false</legacyMode>
+      <updateRate>30</updateRate>
+      <leftJoint>wheel_left_joint</leftJoint>
+      <rightJoint>wheel_right_joint</rightJoint>
+      <wheelSeparation>0.160</wheelSeparation>
+      <wheelDiameter>0.066</wheelDiameter>
+      <wheelAcceleration>1</wheelAcceleration>
+      <wheelTorque>10</wheelTorque>
+      <rosDebugLevel>na</rosDebugLevel>
+    </plugin>
+  </gazebo>
+
+  <!-- (d) Ruído da IMU.
+       O arquivo original do TurtleBot3 tinha <gaussianNoise>0.0</gaussianNoise>
+       (sem ruído) e um bloco <imu><noise><rate>/<accel>...</imu> com valores
+       de aparência realista — mas esse bloco NÃO é lido pelo plugin
+       libgazebo_ros_imu.so (confirmado no header gazebo_ros_imu.h: só existe
+       um único membro gaussian_noise_), então era ruído morto, cosmético.
+       Limitação real da API: este plugin só aceita UM valor escalar de
+       gaussianNoise, aplicado igualmente à velocidade angular (rad/s) e à
+       aceleração linear (m/s²) — não há bias nem valores por eixo. Um valor
+       por eixo com bias exigiria trocar para libgazebo_ros_imu_sensor.so,
+       mas eu não tinha como confirmar os nomes de tag SDF desse plugin sem
+       exemplo de uso, e a seção 9.6 do prompt pede para não inventar
+       parâmetro de plugin — por isso mantive o plugin original e escolhi
+       0.01 como valor único: é uma ordem de grandeza abaixo do "salto"
+       plausível de um giroscópio MEMS barato (~0.01-0.05 rad/s de desvio)
+       e, para o acelerômetro, corresponde a ruído moderado (~0.01 m/s²).
+       Avise se quiser refinar isso trocando de plugin. -->
+  <gazebo>
+    <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+      <alwaysOn>true</alwaysOn>
+      <bodyName>imu_link</bodyName>
+      <frameName>imu_link</frameName>
+      <topicName>imu</topicName>
+      <serviceName>imu_service</serviceName>
+      <gaussianNoise>0.01</gaussianNoise>
+      <updateRate>100</updateRate>   <!-- era 0 = "o mais rápido possível";
+             medido com rostopic hz, isso publicava a ~1000 Hz (cada passo
+             de física), sem relação com o <update_rate> do <sensor> acima
+             (que esse plugin de MODELO, não de sensor, ignora por completo).
+             100 Hz é uma taxa de IMU real, e ainda cobre os 30 Hz do EKF. -->
+    </plugin>
+  </gazebo>
+
+  <!-- (f) LiDAR removido por completo (era <sensor type="ray"> + plugin
+       libgazebo_ros_laser). O link/joint/malha base_scan continuam no
+       agrobot.urdf.xacro só para preservar massa e inércia; aqui não sobra
+       nenhum sensor nem plugin de laser, então /scan não é publicado. -->
+
+  <!-- (g) Nenhum plugin de ground truth (ex.: libgazebo_ros_p3d) foi
+       adicionado de propósito — ver seção 4.2(g) do prompt. Pose real,
+       quando precisar, vem de /gazebo/model_states. -->
+
+</robot>

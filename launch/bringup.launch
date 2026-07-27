@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Launch único: Gazebo + robot_state_publisher + EKF + RViz + teleop. -->
+<launch>
+  <arg name="mundo" default="$(find projeto_agrobot_uwb)/worlds/campo_agricola.world"/>
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="0.0"/>
+  <arg name="yaw" default="0.0"/>
+  <arg name="gui" default="true"/>
+  <arg name="rviz" default="true"/>
+  <arg name="teleop" default="true"/>
+
+  <include file="$(find projeto_agrobot_uwb)/launch/gazebo.launch">
+    <arg name="mundo" value="$(arg mundo)"/>
+    <arg name="x" value="$(arg x)"/>
+    <arg name="y" value="$(arg y)"/>
+    <arg name="yaw" value="$(arg yaw)"/>
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
+
+  <include file="$(find projeto_agrobot_uwb)/launch/display.launch">
+    <arg name="rviz" value="$(arg rviz)"/>
+  </include>
+
+  <include file="$(find projeto_agrobot_uwb)/launch/localizacao.launch"/>
+
+  <group if="$(arg teleop)">
+    <include file="$(find projeto_agrobot_uwb)/launch/teleop.launch"/>
+  </group>
+</launch>
