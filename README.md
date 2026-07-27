@@ -194,6 +194,38 @@ roswtf                               # não deve reportar nenhum ERRO (avisos so
 | `/imu` | `sensor_msgs/Imu` | publica | plugin `libgazebo_ros_imu` |
 | `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node` |
 | `/gazebo/model_states` | `gazebo_msgs/ModelStates` | publica | Gazebo (pose real, só para comparação manual) |
+| `/gtec/toa/ranging` | `gtec_msgs/Ranging` | publica | plugin `libgtec_uwb_plugin` (externo) |
+| `/gtec/toa/anchors` | `visualization_msgs/MarkerArray` | publica | plugin `libgtec_uwb_plugin` (externo) |
+
+## Sensor UWB (ativo, fora da localização)
+
+O mundo tem 10 âncoras UWB fixas (`uwb_anchor0..9`, uma por planta, a 1.0 m
+de altura acima de cada uma) e o robô
+tem uma tag (`uwb_tag_link`) com o plugin
+[`uwb_gazebosensorplugins`](https://github.com/AUVSL/UWB-Gazebo-Plugin)
+(externo — clonado à parte, não faz parte deste pacote nem do repositório).
+
+- **Não participa do EKF nem de nenhuma parte da localização** — é só um
+  sensor simulado ativo, publicando ranging real (com modelo de LOS/NLOS,
+  inclusive reflexão em obstáculos) para inspeção manual
+  (`rostopic echo /gtec/toa/ranging`). Se um dia quiser fundir isso à
+  localização, precisaria escrever um nó de trilateração à parte (o plugin
+  só entrega distância por âncora, não uma pose pronta).
+- **Dependências externas** (não vêm com este pacote): clone em
+  `~/catkin_ws/src/`:
+  ```bash
+  git clone https://github.com/AUVSL/rosmsgs.git gtec_msgs
+  git clone https://github.com/AUVSL/UWB-Gazebo-Plugin.git uwb_gazebosensorplugins
+  cd ~/catkin_ws && catkin_make
+  ```
+- **Detalhe de implementação**: o `uwb_tag_link` é um link vazio (sem
+  geometria) ligado por joint fixa, e o Gazebo funde esse tipo de link no
+  `base_link` ao converter URDF→SDF — o que faz o plugin usar a pose do
+  robô inteiro como origem do raio de UWB, bem dentro da própria colisão
+  do chassi, bloqueando todo raio de linha de visão. Corrigido com
+  `tag_z_offset=0.3` no plugin (ver comentário em `agrobot.gazebo.xacro`),
+  que levanta essa origem para fora do robô sem precisar resolver a fusão
+  do link.
 
 ## Árvore TF
 

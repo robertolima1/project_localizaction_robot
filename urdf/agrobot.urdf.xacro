@@ -138,6 +138,29 @@
   <link name="imu_link"/>
 
   <!--
+    Tag UWB (plugin externo uwb_gazebosensorplugins/gtec_uwb_plugin, ver
+    agrobot.gazebo.xacro). Fixa no topo do chassi, só para ter uma origem
+    de medição de distância às âncoras do mundo — não participa do EKF.
+  -->
+  <joint name="uwb_tag_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="uwb_tag_link"/>
+    <origin xyz="-0.032 0 0.15" rpy="0 0 0"/>
+  </joint>
+
+  <link name="uwb_tag_link"/>
+
+  <!-- Sem isso, o Gazebo funde (lump) o uwb_tag_link — vazio, sem
+       geometria — dentro do base_link na conversão URDF->SDF, e
+       _parent->GetLink("uwb_tag_link") no plugin retorna NULL (confirmado
+       no log ~/.gazebo/server-*/default.log: "Tag link Is NULL"). O mesmo
+       aviso está no README do plugin para as âncoras. -->
+  <gazebo reference="uwb_tag_joint">
+    <preserveFixedJoint>true</preserveFixedJoint>
+    <disableFixedJointLumping>true</disableFixedJointLumping>
+  </gazebo>
+
+  <!--
     base_scan: link, joint e malha do LDS-01 mantidos de propósito (ver seção 4.1).
     Isso preserva massa e inércia idênticas ao burger real. O que desaparece é
     apenas o sensor <ray> e o plugin do laser, removidos em agrobot.gazebo.xacro.

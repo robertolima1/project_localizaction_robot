@@ -224,5 +224,151 @@
       </link>
     </model>
 
+    <!--
+      Âncoras UWB (plugin uwb_gazebosensorplugins/gtec_uwb_plugin, pacote
+      externo clonado em ~/catkin_ws/src/uwb_gazebosensorplugins).
+      O nome de cada âncora PRECISA começar com o anchor_prefix configurado
+      no plugin da tag (ver agrobot.gazebo.xacro) — aqui "uwb_anchor" — e
+      terminar em um número (uwb_anchor0, uwb_anchor1, ...), sem exigir
+      sequência contígua nem começar em zero.
+
+      Uma âncora por planta (10 no total): mesmo x/y de cada
+      planta_1_1..5 (y=-0.5) e planta_2_1..5 (y=0.5), no topo de um poste de
+      1.0 m — como se cada planta tivesse sua própria âncora acima dela.
+      Isso dá bastante variação de LOS/NLOS conforme o robô passa entre as
+      fileiras (cada âncora fica bloqueada pela própria planta logo abaixo
+      dependendo do ângulo), que é o efeito que o plugin simula.
+    -->
+    <model name="uwb_anchor0">
+      <static>true</static>
+      <pose>-0.8 -0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor1">
+      <static>true</static>
+      <pose>-0.4 -0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor2">
+      <static>true</static>
+      <pose>0.0 -0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor3">
+      <static>true</static>
+      <pose>0.4 -0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor4">
+      <static>true</static>
+      <pose>0.8 -0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor5">
+      <static>true</static>
+      <pose>-0.8 0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor6">
+      <static>true</static>
+      <pose>-0.4 0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor7">
+      <static>true</static>
+      <pose>0.0 0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor8">
+      <static>true</static>
+      <pose>0.4 0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="uwb_anchor9">
+      <static>true</static>
+      <pose>0.8 0.5 1.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
   </world>
 </sdf>

@@ -131,4 +131,35 @@
        adicionado de propósito — ver seção 4.2(g) do prompt. Pose real,
        quando precisar, vem de /gazebo/model_states. -->
 
+  <!-- Tag UWB — plugin externo (uwb_gazebosensorplugins, clonado à parte
+       em ~/catkin_ws/src/, não faz parte deste pacote). Só ativa o sensor
+       simulado (publica ranging em /gtec/toa/ranging e /gtec/toa/anchors);
+       NÃO entra no EKF nem em nenhuma outra parte da localização — por
+       pedido explícito, isso fica de fora por enquanto.
+
+       tag_z_offset=0.3: o Gazebo funde (lump) o uwb_tag_link — vazio, sem
+       geometria — dentro do base_link ao converter URDF->SDF (confirmado
+       no log ~/.gazebo/server-*/default.log: "Tag link Is NULL"); as tags
+       <preserveFixedJoint>/<disableFixedJointLumping> no
+       agrobot.urdf.xacro não evitaram isso nesta versão do Gazebo/ROS. Com
+       o link fundido, o plugin usa a pose do MODELO inteiro como origem do
+       raio de LOS — bem próxima da própria caixa de colisão do chassi, o
+       que fazia todo raio bater no próprio robô e nenhum ranging nunca era
+       publicado (testado e confirmado com all_los=1: só aí o ranging
+       aparecia). O tag_z_offset levanta essa origem 0.3 m, para fora do
+       chassi, e resolve isso sem precisar consertar o lumping —
+       comportamento de LOS/NLOS real (raycasting) volta a funcionar. -->
+  <gazebo>
+    <plugin name="libgtec_uwb_plugin" filename="libgtec_uwb_plugin.so">
+      <update_rate>10</update_rate>
+      <nlosSoftWallWidth>0.1</nlosSoftWallWidth>
+      <tag_z_offset>0.3</tag_z_offset>
+      <tag_link>uwb_tag_link</tag_link>
+      <anchor_prefix>uwb_anchor</anchor_prefix>
+      <all_los>false</all_los>
+      <tag_id>0</tag_id>
+      <return_angle>true</return_angle>
+    </plugin>
+  </gazebo>
+
 </robot>

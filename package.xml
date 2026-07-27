@@ -27,6 +27,13 @@
   <depend>rviz</depend>
   <depend>turtlebot3_description</depend>
 
+  <!-- Plugin de sensor UWB simulado (externo, não faz parte deste pacote —
+       clonado em ~/catkin_ws/src/uwb_gazebosensorplugins e
+       ~/catkin_ws/src/gtec_msgs a partir de github.com/AUVSL). Só ativa o
+       sensor (ranging); não participa do EKF. -->
+  <exec_depend>uwb_gazebosensorplugins</exec_depend>
+  <exec_depend>gtec_msgs</exec_depend>
+
   <export>
     <gazebo_ros gazebo_media_path="${prefix}"/>
   </export>
