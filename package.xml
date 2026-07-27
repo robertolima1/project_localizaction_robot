@@ -26,6 +26,7 @@
   <depend>robot_state_publisher</depend>
   <depend>rviz</depend>
   <depend>turtlebot3_description</depend>
+  <exec_depend>rosbag</exec_depend>
 
   <!-- Plugin de sensor UWB simulado (externo, não faz parte deste pacote —
        clonado em ~/catkin_ws/src/uwb_gazebosensorplugins e

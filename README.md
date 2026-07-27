@@ -305,6 +305,26 @@ absoluta:
 
 ## Gravando um percurso para analisar a deriva
 
+O `bringup.launch` já grava automaticamente, sem comando manual: um nó
+`rosbag record` sobe junto com o resto e salva cada percurso em
+`bags/percurso_<timestamp>.bag`, com os tópicos `/odom`, `/imu`,
+`/odometry/filtered` e `/cmd_vel`.
+
 ```bash
-rosbag record /odom /imu /odometry/filtered /cmd_vel
+# comportamento padrão: grava
+roslaunch projeto_agrobot_uwb bringup.launch
+
+# desativar a gravação (ex.: teste rápido, sem interesse em analisar depois)
+roslaunch projeto_agrobot_uwb bringup.launch gravar:=false
 ```
+
+Cada execução do launch gera um `.bag` novo (o `rosbag record` nunca
+sobrescreve o anterior). Para inspecionar depois:
+
+```bash
+rosbag info bags/percurso_<timestamp>.bag
+rosbag play bags/percurso_<timestamp>.bag
+```
+
+Os `.bag` não são versionados no git (ver `.gitignore`) — geralmente são
+pesados demais para isso.

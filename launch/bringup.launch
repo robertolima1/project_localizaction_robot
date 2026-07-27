@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Launch único: Gazebo + robot_state_publisher + EKF + RViz + teleop. -->
+<!-- Launch único: Gazebo + robot_state_publisher + EKF + RViz + teleop + gravação do percurso. -->
 <launch>
   <arg name="mundo" default="$(find projeto_agrobot_uwb)/worlds/campo_agricola.world"/>
   <arg name="x" default="0.0"/>
@@ -8,6 +8,7 @@
   <arg name="gui" default="true"/>
   <arg name="rviz" default="true"/>
   <arg name="teleop" default="true"/>
+  <arg name="gravar" default="true"/>
 
   <include file="$(find projeto_agrobot_uwb)/launch/gazebo.launch">
     <arg name="mundo" value="$(arg mundo)"/>
@@ -25,5 +26,14 @@
 
   <group if="$(arg teleop)">
     <include file="$(find projeto_agrobot_uwb)/launch/teleop.launch"/>
+  </group>
+
+  <!-- Grava o percurso automaticamente em bags/percurso_<timestamp>.bag, sem
+       precisar lembrar do comando manual do README. Desative com
+       gravar:=false se não quiser gerar o arquivo (ex.: teste rápido). -->
+  <group if="$(arg gravar)">
+    <node pkg="rosbag" type="record" name="rosbag_record_percurso"
+          args="-o $(find projeto_agrobot_uwb)/bags/percurso /odom /imu /odometry/filtered /cmd_vel"
+          output="screen"/>
   </group>
 </launch>
