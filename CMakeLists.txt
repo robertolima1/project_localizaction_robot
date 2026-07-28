@@ -23,6 +23,7 @@ catkin_install_python(PROGRAMS
   scripts/teleop_teclado.py
   scripts/ekf_localizacao_uwb.py
   scripts/bag_para_csv.py
+  scripts/identity.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
