@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
-<!-- Launch único: Gazebo + robot_state_publisher + EKF + RViz + teleop + gravação do percurso. -->
+<!-- Launch único: Gazebo + robot_state_publisher + EKF (robot_localization ou
+     ekf_uwb, ver arg localizacao) + RViz + teleop + gravação do percurso. -->
 <launch>
   <arg name="mundo" default="$(find projeto_agrobot_uwb)/worlds/campo_agricola.world"/>
   <arg name="x" default="0.0"/>
@@ -9,6 +10,7 @@
   <arg name="rviz" default="true"/>
   <arg name="teleop" default="true"/>
   <arg name="gravar" default="true"/>
+  <arg name="localizacao" default="robot_localization"/>  <!-- robot_localization | ekf_uwb -->
 
   <include file="$(find projeto_agrobot_uwb)/launch/gazebo.launch">
     <arg name="mundo" value="$(arg mundo)"/>
@@ -22,7 +24,12 @@
     <arg name="rviz" value="$(arg rviz)"/>
   </include>
 
-  <include file="$(find projeto_agrobot_uwb)/launch/localizacao.launch"/>
+  <include file="$(find projeto_agrobot_uwb)/launch/localizacao.launch">
+    <arg name="metodo" value="$(arg localizacao)"/>
+    <arg name="origem_x" value="$(arg x)"/>
+    <arg name="origem_y" value="$(arg y)"/>
+    <arg name="origem_yaw" value="$(arg yaw)"/>
+  </include>
 
   <group if="$(arg teleop)">
     <include file="$(find projeto_agrobot_uwb)/launch/teleop.launch"/>

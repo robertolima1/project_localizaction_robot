@@ -1,7 +1,29 @@
 <?xml version="1.0"?>
-<!-- EKF do robot_localization: única fonte da TF odom -> base_footprint. -->
+<!-- Localização: publica odom -> base_footprint. Duas fontes alternativas,
+     nunca simultâneas (disputariam a mesma TF) — escolhidas por `metodo`:
+       - robot_localization (padrão): ekf_localization_node fundindo
+         /odom + /imu, sem referência absoluta (ver config/ekf_local.yaml).
+       - ekf_uwb: EKF por correspondência conhecida (Thrun, Tabela 7.2)
+         fundindo /odom + /imu + as âncoras UWB como referência absoluta
+         (ver scripts/ekf_localizacao_uwb.py e config/ekf_uwb.yaml). -->
 <launch>
-  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization_node" clear_params="true">
-    <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_local.yaml"/>
-  </node>
+  <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb -->
+  <arg name="origem_x" default="0.0"/>
+  <arg name="origem_y" default="0.0"/>
+  <arg name="origem_yaw" default="0.0"/>
+
+  <group if="$(eval metodo == 'robot_localization')">
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization_node" clear_params="true">
+      <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_local.yaml"/>
+    </node>
+  </group>
+
+  <group if="$(eval metodo == 'ekf_uwb')">
+    <node pkg="projeto_agrobot_uwb" type="ekf_localizacao_uwb.py" name="ekf_localizacao_uwb" output="screen">
+      <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_uwb.yaml"/>
+      <param name="origem_x" value="$(arg origem_x)"/>
+      <param name="origem_y" value="$(arg origem_y)"/>
+      <param name="origem_yaw" value="$(arg origem_yaw)"/>
+    </node>
+  </group>
 </launch>

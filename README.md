@@ -1,10 +1,13 @@
 # projeto_agrobot_uwb
 
 Pacote ROS 1 Noetic derivado do **TurtleBot3 burger**, com localização por
-EKF (`robot_localization`) fundindo IMU + odometria de rodas, mundo Gazebo
-próprio (fileiras de plantio em escala reduzida) e teleoperação manual por
-teclado. Sensoriamento: **somente IMU + odometria de rodas** — sem LiDAR,
-câmera ou GPS. Controle: **100% manual**, sem waypoints nem `move_base`.
+EKF — `robot_localization` (dead reckoning, IMU + odometria de rodas) ou
+um EKF próprio por correspondência conhecida usando âncoras UWB como
+referência absoluta, alternáveis por parâmetro (ver seção "Localização")
+—, mundo Gazebo próprio (fileiras de plantio em escala reduzida) e
+teleoperação manual por teclado. Sensoriamento: **IMU + odometria de
+rodas + UWB** — sem LiDAR, câmera ou GPS. Controle: **100% manual**, sem
+waypoints nem `move_base`.
 
 Ambiente testado: Ubuntu 20.04 (WSL2/WSLg), ROS Noetic, catkin, Gazebo 11.
 
@@ -142,6 +145,8 @@ roslaunch projeto_agrobot_uwb bringup.launch x:=1.0 y:=0.5 yaw:=1.57
 | `gui` | `true` | Mostra ou não a janela do Gazebo (`gzclient`); o servidor de física (`gzserver`) sobe de qualquer jeito. |
 | `rviz` | `true` | Abre ou não o RViz. |
 | `teleop` | `true` | Sobe ou não a janela xterm com o teleop automaticamente. |
+| `gravar` | `true` | Grava ou não o percurso em `bags/percurso_<timestamp>.bag` (ver seção "Gravando um percurso"). |
+| `localizacao` | `robot_localization` | Qual EKF usa a TF `odom → base_footprint`: `robot_localization` ou `ekf_uwb` (ver seção "Localização"). |
 
 ### Verificando se está tudo certo (em outro terminal, com o `bringup.launch` já rodando)
 
@@ -192,12 +197,49 @@ roswtf                               # não deve reportar nenhum ERRO (avisos so
 | `/e_stop` | `std_msgs/Bool` | publica (status observável) | `teleop_teclado.py` |
 | `/odom` | `nav_msgs/Odometry` | publica | plugin `libgazebo_ros_diff_drive` |
 | `/imu` | `sensor_msgs/Imu` | publica | plugin `libgazebo_ros_imu` |
-| `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node` |
+| `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node` **ou** `ekf_localizacao_uwb` (ver `localizacao`) |
 | `/gazebo/model_states` | `gazebo_msgs/ModelStates` | publica | Gazebo (pose real, só para comparação manual) |
 | `/gtec/toa/ranging` | `gtec_msgs/Ranging` | publica | plugin `libgtec_uwb_plugin` (externo) |
+| `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina, só com `localizacao:=ekf_uwb` | `ekf_localizacao_uwb.py` |
 | `/gtec/toa/anchors` | `visualization_msgs/MarkerArray` | publica | plugin `libgtec_uwb_plugin` (externo) |
 
-## Sensor UWB (ativo, fora da localização)
+## Localização
+
+`launch/localizacao.launch` publica a TF `odom → base_footprint` e o
+tópico `/odometry/filtered`, através de **um entre dois métodos
+alternativos** (nunca os dois ao mesmo tempo — disputariam a mesma TF),
+escolhido pelo argumento `localizacao` do `bringup.launch`:
+
+| `localizacao` | Nó | Fontes fundidas | Referência absoluta? |
+|---|---|---|---|
+| `robot_localization` (padrão) | `ekf_localization_node` | `/odom` + `/imu` | Não — dead reckoning puro (ver "Limitações do dead reckoning"). |
+| `ekf_uwb` | `scripts/ekf_localizacao_uwb.py` | `/odom` + `/imu` + `/gtec/toa/ranging` | Sim — as âncoras UWB fecham o laço. |
+
+```bash
+# EKF de dead reckoning (padrão)
+roslaunch projeto_agrobot_uwb bringup.launch
+
+# EKF com correspondência conhecida (Thrun, Tabela 7.2), usando as âncoras
+# UWB como mapa de referência absoluta
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb
+```
+
+`ekf_uwb` é a implementação da Tabela 7.2 de *Probabilistic Robotics*
+(Thrun, Burgard & Fox) com correspondência conhecida: a correspondência
+`c^i` vem pronta no `anchorId` de cada `gtec_msgs/Ranging`, então não há
+dimensão de assinatura a resolver. O controle `u_t = (v, w)` usa o mesmo
+par de fontes do `robot_localization` (`v` de `/odom`, `w` de `/imu`); a
+correção usa `(r, phi)` — distância e ângulo relativo de cada âncora —
+com o mapa de âncoras fixo em `config/ekf_uwb.yaml` (posições copiadas do
+`.world`). Detalhes e as três notas de implementação (projeção do range
+3D para 2D, saturação de `w` perto de zero, e a suposição de que `odom`
+coincide com o frame do mundo no spawn) estão comentados no próprio
+script.
+
+Parâmetros de `ekf_uwb.yaml` que provavelmente valem a pena calibrar:
+`sigma_r`/`sigma_phi` (ruído de medida) e `r_diag` (ruído de processo).
+
+## Sensor UWB
 
 O mundo tem 10 âncoras UWB fixas (`uwb_anchor0..9`, uma por planta, a 1.0 m
 de altura acima de cada uma) e o robô
@@ -205,12 +247,11 @@ tem uma tag (`uwb_tag_link`) com o plugin
 [`uwb_gazebosensorplugins`](https://github.com/AUVSL/UWB-Gazebo-Plugin)
 (externo — clonado à parte, não faz parte deste pacote nem do repositório).
 
-- **Não participa do EKF nem de nenhuma parte da localização** — é só um
+- **Participa da localização só quando `localizacao:=ekf_uwb`** (ver seção
+  "Localização" acima). Com o padrão (`robot_localization`), é só um
   sensor simulado ativo, publicando ranging real (com modelo de LOS/NLOS,
   inclusive reflexão em obstáculos) para inspeção manual
-  (`rostopic echo /gtec/toa/ranging`). Se um dia quiser fundir isso à
-  localização, precisaria escrever um nó de trilateração à parte (o plugin
-  só entrega distância por âncora, não uma pose pronta).
+  (`rostopic echo /gtec/toa/ranging`), sem entrar em nenhum EKF.
 - **Dependências externas** (não vêm com este pacote): clone em
   `~/catkin_ws/src/`:
   ```bash
@@ -230,7 +271,9 @@ tem uma tag (`uwb_tag_link`) com o plugin
 ## Árvore TF
 
 ```
-odom -> base_footprint   (publicado só pelo ekf_localization_node)
+odom -> base_footprint   (publicado só pelo método de localização ativo:
+                          ekf_localization_node OU ekf_localizacao_uwb,
+                          nunca os dois — ver seção "Localização")
 base_footprint -> base_link
 base_link -> wheel_left_link
 base_link -> wheel_right_link
@@ -240,68 +283,6 @@ base_link -> base_scan     (link mantido por massa/inércia; sem sensor de LiDAR
 ```
 
 Validar com: `rosrun tf2_tools view_frames.py`.
-
-## O que foi alterado em relação ao TurtleBot3 original
-
-Arquivos copiados de `turtlebot3_description` para dentro deste pacote
-(`urdf/agrobot.urdf.xacro` e `urdf/agrobot.gazebo.xacro`), com as seguintes
-correções no `.gazebo.xacro` (necessárias para o EKF fazer sentido):
-
-- **`publishOdomTF`**: `true` → `false`. Sem isso, o plugin de rodas e o EKF
-  publicariam `odom -> base_footprint` ao mesmo tempo, e a TF ficaria
-  oscilando entre as duas fontes.
-- **`odometrySource`**: `world` → `encoder`. Com `world` o Gazebo entrega a
-  pose real (ground truth) em `/odom`, sem deriva — o EKF não teria o que
-  corrigir. Com `encoder`, a odometria é integrada das rodas e deriva de
-  forma realista.
-- **`robotBaseFrame`**: já era `base_footprint` (confirmado — é o mesmo
-  frame usado em `base_link_frame` no `ekf_local.yaml`; misturar
-  `base_link`/`base_footprint` é a causa nº1 de erro silencioso de offset).
-- **Ruído da IMU**: o `gaussianNoise` do plugin `libgazebo_ros_imu.so`
-  estava zerado. O bloco `<imu><noise>...` que parecia configurar bias e
-  desvio-padrão por eixo **nunca funcionou** — confirmado no header
-  `gazebo_ros_imu.h`, que só declara um único `gaussian_noise_`. Esse
-  plugin não suporta bias nem valores separados para giro/acelerômetro;
-  usamos `gaussianNoise = 0.01` como valor único aplicado aos dois. Como a
-  IMU é a única fonte de correção do projeto, esse número define
-  diretamente o quanto o EKF tem para corrigir — para ruído por eixo com
-  bias real seria necessário trocar para `libgazebo_ros_imu_sensor.so`
-  (formato SDF nativo do sensor IMU do Gazebo).
-- **LiDAR removido**: o bloco `<sensor type="ray">` + plugin
-  `libgazebo_ros_laser` foi apagado inteiro. O link/joint/malha de
-  `base_scan` continuam no URDF só para preservar massa e inércia
-  originais — não há `/scan`.
-- **Nenhum plugin de ground truth** foi adicionado (ex.: `libgazebo_ros_p3d`).
-  Pose real, quando necessária, vem de `/gazebo/model_states`.
-
-## Raciocínio do `process_noise_covariance` (EKF)
-
-Os valores de `x`/`y` (índices 0,1) ficam moderados (`0.05`) porque essas
-posições nunca são medidas diretamente — só integradas de `vx` — então o
-filtro precisa admitir incerteza crescente nelas. `yaw`/`vyaw` (índices 5,
-11) usam um processo mais permissivo que o padrão de exemplo do
-`robot_localization`, coerente com o `gaussianNoise = 0.01` da IMU: se o
-processo fosse mais "confiante" que o próprio sensor, o filtro reagiria
-devagar demais às correções de orientação, que são o ponto central deste
-projeto. Os demais estados ficam nos valores de exemplo padrão do pacote.
-
-## Limitações do dead reckoning
-
-Com apenas IMU e encoders não existe nenhuma referência de posição
-absoluta:
-
-- O erro de **posição** cresce de forma cumulativa e ilimitada. O EKF
-  reduz a taxa de crescimento (o giroscópio corrige o yaw, a maior fonte
-  de erro em um robô diferencial), mas não zera.
-- Derrapagem de roda é o pior inimigo: cada patinada vira erro permanente.
-  Como as plantas têm colisão, esbarrar em uma delas arruína a odometria
-  dali em diante.
-- Percursos longos terminam visivelmente fora do lugar no RViz, mesmo
-  dirigindo bem — é o comportamento correto do sistema, não um bug.
-- Para fechar o laço algum dia: LiDAR + AMCL, GPS/RTK + segundo EKF, ou
-  âncoras UWB publicando pose absoluta como uma terceira fonte —
-  entrariam como `pose0` em `config/ekf_local.yaml`. Não implementado
-  nesta versão.
 
 ## Gravando um percurso para analisar a deriva
 
@@ -328,3 +309,30 @@ rosbag play bags/percurso_<timestamp>.bag
 
 Os `.bag` não são versionados no git (ver `.gitignore`) — geralmente são
 pesados demais para isso.
+
+### Extraindo o percurso para CSV
+
+`scripts/bag_para_csv.py` lê um ou mais `.bag` e escreve um único CSV em
+formato longo (`t, fonte, x, y, yaw`, com `yaw` já convertido do
+quaternion), pronto para abrir numa planilha ou no pandas:
+
+```bash
+rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag saida.csv
+```
+
+Por padrão o `bringup.launch` **não** grava `/gazebo/model_states`
+(ground truth) — só `/odom`, `/imu`, `/odometry/filtered`, `/cmd_vel`. Sem
+esse tópico, a coluna `fonte` nunca traz `ground_truth`, sem erro nem
+aviso. Para incluir a comparação com o ground truth, grave-o à parte, num
+segundo terminal, enquanto dirige:
+
+```bash
+rosbag record -O bags/ground_truth_XXXX.bag /gazebo/model_states
+```
+
+e passe os dois arquivos ao script — ele aceita vários `.bag` de uma vez
+e alinha o tempo pelo início mais antigo entre eles:
+
+```bash
+rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag bags/ground_truth_XXXX.bag saida.csv
+```
