@@ -241,8 +241,9 @@ Parâmetros de `ekf_uwb.yaml` que provavelmente valem a pena calibrar:
 
 ## Sensor UWB
 
-O mundo tem 10 âncoras UWB fixas (`uwb_anchor0..9`, uma por planta, a 1.0 m
-de altura acima de cada uma) e o robô
+O mundo tem 10 âncoras UWB fixas (`uwb_anchor0..9`, uma por planta,
+encostada no lado de fora de cada uma, a 0,15 m de altura — mesma altura
+do centro da planta) e o robô
 tem uma tag (`uwb_tag_link`) com o plugin
 [`uwb_gazebosensorplugins`](https://github.com/AUVSL/UWB-Gazebo-Plugin)
 (externo — clonado à parte, não faz parte deste pacote nem do repositório).
@@ -313,18 +314,29 @@ pesados demais para isso.
 ### Extraindo o percurso para CSV
 
 `scripts/bag_para_csv.py` lê um ou mais `.bag` e escreve um único CSV em
-formato longo (`t, fonte, x, y, yaw`, com `yaw` já convertido do
-quaternion), pronto para abrir numa planilha ou no pandas:
+**formato largo** — uma linha por instante de tempo, com colunas
+separadas por fonte (`odom_x, odom_y, odom_yaw, filtrada_x, filtrada_y,
+filtrada_yaw, ground_truth_x, ground_truth_y, ground_truth_yaw`, `yaw` já
+convertido do quaternion), pronto para comparar as fontes lado a lado
+numa planilha ou no pandas sem precisar pivotar depois:
 
 ```bash
 rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag saida.csv
 ```
 
+As três fontes publicam em instantes diferentes e raramente batem o
+timestamp exato, então o script arredonda `t` para o múltiplo mais
+próximo de `--resolucao` (padrão `0.05` s = 20 Hz) e agrupa nesse
+intervalo — a leitura mais recente de cada fonte dentro do intervalo é a
+que fica na linha. Uma fonte sem leitura naquele intervalo sai com as
+colunas vazias, não com erro. Ajuste com `--resolucao 0.1`, por exemplo,
+se quiser linhas mais "cheias" ao custo de granularidade temporal.
+
 Por padrão o `bringup.launch` **não** grava `/gazebo/model_states`
 (ground truth) — só `/odom`, `/imu`, `/odometry/filtered`, `/cmd_vel`. Sem
-esse tópico, a coluna `fonte` nunca traz `ground_truth`, sem erro nem
-aviso. Para incluir a comparação com o ground truth, grave-o à parte, num
-segundo terminal, enquanto dirige:
+esse tópico, as colunas `ground_truth_*` saem vazias em todas as linhas,
+sem erro nem aviso. Para incluir a comparação com o ground truth,
+grave-o à parte, num segundo terminal, enquanto dirige:
 
 ```bash
 rosbag record -O bags/ground_truth_XXXX.bag /gazebo/model_states

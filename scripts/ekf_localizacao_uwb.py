@@ -48,6 +48,25 @@ def normalize_angle(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 
+# Mapa m da Tabela 7.2: posições das âncoras no frame do mundo Gazebo (ver
+# worlds/campo_agricola.world, seção das âncoras UWB). id = anchorId do
+# gtec_msgs/Ranging (sufixo numérico de uwb_anchorN). Valor padrão do
+# parâmetro ~ancoras — config/ekf_uwb.yaml traz a mesma lista, mas o nó
+# não fica sem mapa se for rodado sem carregar o yaml (ex.: rosrun direto).
+ANCORAS_PADRAO = [
+    {"id": 0, "x": -0.8, "y": -0.6},
+    {"id": 1, "x": -0.4, "y": -0.6},
+    {"id": 2, "x": 0.0, "y": -0.6},
+    {"id": 3, "x": 0.4, "y": -0.6},
+    {"id": 4, "x": 0.8, "y": -0.6},
+    {"id": 5, "x": -0.8, "y": 0.6},
+    {"id": 6, "x": -0.4, "y": 0.6},
+    {"id": 7, "x": 0.0, "y": 0.6},
+    {"id": 8, "x": 0.4, "y": 0.6},
+    {"id": 9, "x": 0.8, "y": 0.6},
+]
+
+
 class EKFLocalizacaoUWB(object):
 
     def __init__(self):
@@ -82,7 +101,7 @@ class EKFLocalizacaoUWB(object):
         # origem_x/y/yaw — ver docstring acima e nota [N3].
         c, s = math.cos(origem_yaw), math.sin(origem_yaw)
         self.mapa = {}
-        for anc in rospy.get_param("~ancoras", []):
+        for anc in rospy.get_param("~ancoras", ANCORAS_PADRAO):
             wx, wy = anc["x"] - origem_x, anc["y"] - origem_y
             self.mapa[int(anc["id"])] = (c * wx + s * wy, -s * wx + c * wy)
 
@@ -258,14 +277,14 @@ if __name__ == "__main__":
 # NOTAS DE IMPLEMENTAÇÃO
 #
 # [N1] O plugin gtec_uwb_plugin mede a distância 3D reta entre a âncora
-#      (z=1,0 m, fixa no .world) e a tag (fundida no base_link + o
-#      tag_z_offset=0,3 m do plugin, ~0,31 m acima do chão — ver
-#      agrobot.gazebo.xacro). Essa diferença de altura (~0,69 m) é grande
-#      demais para ignorar frente às distâncias horizontais do cenário
-#      (as fileiras têm ~1,6 m). O range bruto é sempre >= 0,69 m mesmo
-#      com o robô embaixo da âncora; sem essa projeção o filtro veria uma
-#      distância horizontal artificialmente maior que a real. altura_ancora
-#      e altura_tag em config/ekf_uwb.yaml são constantes conhecidas (não
+#      (z=0,15 m, encostada na planta — ver .world) e a tag (fundida no
+#      base_link + o tag_z_offset=0,3 m do plugin, ~0,31 m acima do chão —
+#      ver agrobot.gazebo.xacro). Essa diferença de altura (~0,16 m) é
+#      pequena, mas ainda relevante frente às distâncias horizontais do
+#      cenário (âncoras a poucos cm/dezenas de cm do robô em vários
+#      pontos do percurso); sem essa projeção o filtro veria uma distância
+#      horizontal artificialmente maior que a real. altura_ancora e
+#      altura_tag em config/ekf_uwb.yaml são constantes conhecidas (não
 #      estimadas), coerente com a hipótese de mapa conhecido da Tabela 7.2.
 #
 # [N2] v/w é indefinido em w=0; satura-se w perto de zero só para o código
