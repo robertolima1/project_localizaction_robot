@@ -16,8 +16,8 @@
 
   <node pkg="projeto_agrobot_uwb" type="teleop_teclado.py" name="teleop_teclado"
         launch-prefix="xterm -e" output="screen">
-    <param name="vel_linear_max" value="0.22"/>
-    <param name="vel_angular_max" value="2.84"/>
+    <param name="vel_linear_max" value="0.3"/>
+    <param name="vel_angular_max" value="2.5"/>
     <param name="aceleracao" value="$(arg aceleracao)"/>
     <param name="taxa" value="$(arg taxa)"/>
     <param name="watchdog" value="$(arg watchdog)"/>

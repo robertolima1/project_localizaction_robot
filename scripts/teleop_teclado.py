@@ -28,7 +28,7 @@ DIRECOES = {
 # Fração do máximo usada nas curvas combinadas (q/e): frente + giro ao
 # mesmo tempo, mas cada componente um pouco reduzido para a curva não ficar
 # violenta.
-FRACAO_CURVA = 0.3
+FRACAO_CURVA = 0.5
 
 
 class LeitorTeclado:
