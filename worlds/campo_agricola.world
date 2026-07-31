@@ -232,21 +232,18 @@
       terminar em um número (uwb_anchor0, uwb_anchor1, ...), sem exigir
       sequência contígua nem começar em zero.
 
-      Uma âncora por planta (10 no total), encostada no lado de fora de
-      cada planta_1_1..5 (y=-0.5) e planta_2_1..5 (y=0.5): mesmo x, y
-      deslocado 0,10 m para fora da fileira (raio da planta 0,05 m + meia
-      largura da âncora 0,05 m, então a caixa toca o cilindro sem
-      sobrepor) e z=0,15 m — mesma altura do centro da planta (que vai de
-      0 a 0,30 m) — em vez de erguida num poste de 1,0 m como antes. O
-      deslocamento é para FORA da fileira (longe do corredor central) de
-      propósito, para não estreitar ainda mais a passagem entre as duas
-      fileiras. Isso ainda dá variação de LOS/NLOS conforme o robô passa
-      entre as fileiras (cada âncora fica parcialmente atrás da própria
-      planta dependendo do ângulo), que é o efeito que o plugin simula.
+      Uma âncora por planta (10 no total), na cabeça de cada
+      planta_1_1..5 (y=-0.5) e planta_2_1..5 (y=0.5): mesmo x/y da
+      planta (sem deslocamento lateral) e z=0,35 m — a planta vai de 0 a
+      0,30 m, então a âncora fica pousada em cima, encostando a base da
+      caixa (0,1 m) no topo do cilindro, sem sobrepor. Isso ainda dá
+      variação de LOS/NLOS conforme o robô passa entre as fileiras (cada
+      âncora fica parcialmente atrás/acima da própria planta dependendo
+      do ângulo), que é o efeito que o plugin simula.
     -->
     <model name="uwb_anchor0">
       <static>true</static>
-      <pose>-0.8 -0.6 0.15 0 0 0</pose>
+      <pose>-0.8 -0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -259,7 +256,7 @@
     </model>
     <model name="uwb_anchor1">
       <static>true</static>
-      <pose>-0.4 -0.6 0.15 0 0 0</pose>
+      <pose>-0.4 -0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -272,7 +269,7 @@
     </model>
     <model name="uwb_anchor2">
       <static>true</static>
-      <pose>0.0 -0.6 0.15 0 0 0</pose>
+      <pose>0.0 -0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -285,7 +282,7 @@
     </model>
     <model name="uwb_anchor3">
       <static>true</static>
-      <pose>0.4 -0.6 0.15 0 0 0</pose>
+      <pose>0.4 -0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -298,7 +295,7 @@
     </model>
     <model name="uwb_anchor4">
       <static>true</static>
-      <pose>0.8 -0.6 0.15 0 0 0</pose>
+      <pose>0.8 -0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -311,7 +308,7 @@
     </model>
     <model name="uwb_anchor5">
       <static>true</static>
-      <pose>-0.8 0.6 0.15 0 0 0</pose>
+      <pose>-0.8 0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -324,7 +321,7 @@
     </model>
     <model name="uwb_anchor6">
       <static>true</static>
-      <pose>-0.4 0.6 0.15 0 0 0</pose>
+      <pose>-0.4 0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -337,7 +334,7 @@
     </model>
     <model name="uwb_anchor7">
       <static>true</static>
-      <pose>0.0 0.6 0.15 0 0 0</pose>
+      <pose>0.0 0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -350,7 +347,7 @@
     </model>
     <model name="uwb_anchor8">
       <static>true</static>
-      <pose>0.4 0.6 0.15 0 0 0</pose>
+      <pose>0.4 0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
@@ -363,7 +360,7 @@
     </model>
     <model name="uwb_anchor9">
       <static>true</static>
-      <pose>0.8 0.6 0.15 0 0 0</pose>
+      <pose>0.8 0.5 0.35 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>0.1 0.1 0.1</size></box></geometry>

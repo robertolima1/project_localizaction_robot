@@ -1,0 +1,42 @@
+# Parâmetros do localizacao_trilateracao.py (ver docstring do script).
+# Terceira opção de localização — escolhida via arg `metodo` do
+# localizacao.launch, nunca junto com robot_localization nem ekf_uwb.
+
+imu_topic: /imu
+ranging_topic: /gtec/toa/ranging
+odom_frame: odom
+base_frame: base_footprint
+publish_tf: true
+
+# Mínimo de âncoras com leitura recente para calcular uma posição (3 é o
+# mínimo matemático para trilateração 2D). max_idade_leitura descarta
+# leituras velhas demais antes de contar (as âncoras publicam ciclando,
+# então leituras de âncoras diferentes nunca são simultâneas de verdade).
+min_ancoras: 3
+max_idade_leitura: 1.5
+
+# Pose de spawn do robô no frame do mundo Gazebo (mesmos x/y/yaw do
+# gazebo.launch) — o bringup.launch já repassa automaticamente. Mesmo
+# papel que em config/ekf_uwb.yaml.
+origem_x: 0.0
+origem_y: 0.0
+origem_yaw: 0.0
+
+# Altura da âncora (mundo) e altura efetiva da tag — mesma projeção
+# 3D->2D do range que o ekf_uwb.py faz (ver nota [N1] lá).
+altura_ancora: 0.35
+altura_tag: 0.31
+
+# Mapa m: mesmas posições de config/ekf_uwb.yaml (ver
+# worlds/campo_agricola.world). id = anchorId do gtec_msgs/Ranging.
+ancoras:
+  - {id: 0, x: -0.8, y: -0.5}
+  - {id: 1, x: -0.4, y: -0.5}
+  - {id: 2, x:  0.0, y: -0.5}
+  - {id: 3, x:  0.4, y: -0.5}
+  - {id: 4, x:  0.8, y: -0.5}
+  - {id: 5, x: -0.8, y:  0.5}
+  - {id: 6, x: -0.4, y:  0.5}
+  - {id: 7, x:  0.0, y:  0.5}
+  - {id: 8, x:  0.4, y:  0.5}
+  - {id: 9, x:  0.8, y:  0.5}

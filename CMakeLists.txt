@@ -24,6 +24,8 @@ catkin_install_python(PROGRAMS
   scripts/ekf_localizacao_uwb.py
   scripts/bag_para_csv.py
   scripts/identity.py
+  scripts/localizacao_trilateracao.py
+  scripts/exemplo_trilateracao.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

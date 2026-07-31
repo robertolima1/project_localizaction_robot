@@ -66,17 +66,17 @@ class IdentityNode(object):
         # Posições copiadas de worlds/campo_agricola.world (mesmo x/y de cada
         # âncora uwb_anchor0..9 — ver config/ekf_uwb.yaml, que usa o mesmo mapa).
         self.anchors: Dict[int, Anchor] = {
-            0: Anchor(-0.8, -0.6, datetime.now(), 0),  # uwb_anchor0
-            1: Anchor(-0.4, -0.6, datetime.now(), 0),  # uwb_anchor1
-            2: Anchor( 0.0, -0.6, datetime.now(), 0),  # uwb_anchor2
-            3: Anchor( 0.4, -0.6, datetime.now(), 0),  # uwb_anchor3
-            4: Anchor( 0.8, -0.6, datetime.now(), 0),  # uwb_anchor4
+            0: Anchor(-0.8, -0.5, datetime.now(), 0),  # uwb_anchor0
+            1: Anchor(-0.4, -0.5, datetime.now(), 0),  # uwb_anchor1
+            2: Anchor( 0.0, -0.5, datetime.now(), 0),  # uwb_anchor2
+            3: Anchor( 0.4, -0.5, datetime.now(), 0),  # uwb_anchor3
+            4: Anchor( 0.8, -0.5, datetime.now(), 0),  # uwb_anchor4
 
-            5: Anchor(-0.8,  0.6, datetime.now(), 0),  # uwb_anchor5
-            6: Anchor(-0.4,  0.6, datetime.now(), 0),  # uwb_anchor6
-            7: Anchor( 0.0,  0.6, datetime.now(), 0),  # uwb_anchor7
-            8: Anchor( 0.4,  0.6, datetime.now(), 0),  # uwb_anchor8
-            9: Anchor( 0.8,  0.6, datetime.now(), 0),  # uwb_anchor9
+            5: Anchor(-0.8,  0.5, datetime.now(), 0),  # uwb_anchor5
+            6: Anchor(-0.4,  0.5, datetime.now(), 0),  # uwb_anchor6
+            7: Anchor( 0.0,  0.5, datetime.now(), 0),  # uwb_anchor7
+            8: Anchor( 0.4,  0.5, datetime.now(), 0),  # uwb_anchor8
+            9: Anchor( 0.8,  0.5, datetime.now(), 0),  # uwb_anchor9
         }
         # Janela deslizante por âncora (últimos 10)
         self.range_window: Dict[int, Deque[float]] = {

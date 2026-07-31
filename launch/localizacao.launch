@@ -1,15 +1,18 @@
 <?xml version="1.0"?>
-<!-- Localização: publica odom -> base_footprint. Duas fontes alternativas,
+<!-- Localização: publica odom -> base_footprint. Três fontes alternativas,
      nunca simultâneas (disputariam a mesma TF) — escolhidas por `metodo`:
        - robot_localization (padrão): ekf_localization_node fundindo
          /odom + /imu, sem referência absoluta (ver config/ekf_local.yaml).
        - ekf_uwb: EKF por correspondência conhecida (Thrun, Tabela 7.2)
          fundindo /odom + /imu + as âncoras UWB como referência absoluta
-         (ver scripts/ekf_localizacao_uwb.py e config/ekf_uwb.yaml). -->
+         (ver scripts/ekf_localizacao_uwb.py e config/ekf_uwb.yaml).
+       - trilateracao: geometria pura (sem filtro, sem predição) a partir
+         só das âncoras UWB, orientação vinda direto da IMU (ver
+         scripts/localizacao_trilateracao.py e config/trilateracao.yaml). -->
 <launch>
-  <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb -->
-  <arg name="origem_x" default="0.0"/>
-  <arg name="origem_y" default="0.0"/>
+  <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
+  <arg name="origem_x" default="-0.8"/>
+  <arg name="origem_y" default="0.3"/>
   <arg name="origem_yaw" default="0.0"/>
 
   <group if="$(eval metodo == 'robot_localization')">
@@ -21,6 +24,15 @@
   <group if="$(eval metodo == 'ekf_uwb')">
     <node pkg="projeto_agrobot_uwb" type="ekf_localizacao_uwb.py" name="ekf_localizacao_uwb" output="screen">
       <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_uwb.yaml"/>
+      <param name="origem_x" value="$(arg origem_x)"/>
+      <param name="origem_y" value="$(arg origem_y)"/>
+      <param name="origem_yaw" value="$(arg origem_yaw)"/>
+    </node>
+  </group>
+
+  <group if="$(eval metodo == 'trilateracao')">
+    <node pkg="projeto_agrobot_uwb" type="localizacao_trilateracao.py" name="localizacao_trilateracao" output="screen">
+      <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/trilateracao.yaml"/>
       <param name="origem_x" value="$(arg origem_x)"/>
       <param name="origem_y" value="$(arg origem_y)"/>
       <param name="origem_yaw" value="$(arg origem_yaw)"/>

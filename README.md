@@ -146,7 +146,7 @@ roslaunch projeto_agrobot_uwb bringup.launch x:=1.0 y:=0.5 yaw:=1.57
 | `rviz` | `true` | Abre ou não o RViz. |
 | `teleop` | `true` | Sobe ou não a janela xterm com o teleop automaticamente. |
 | `gravar` | `true` | Grava ou não o percurso em `bags/percurso_<timestamp>.bag` (ver seção "Gravando um percurso"). |
-| `localizacao` | `robot_localization` | Qual EKF usa a TF `odom → base_footprint`: `robot_localization` ou `ekf_uwb` (ver seção "Localização"). |
+| `localizacao` | `robot_localization` | Qual método usa a TF `odom → base_footprint`: `robot_localization`, `ekf_uwb` ou `trilateracao` (ver seção "Localização"). |
 
 ### Verificando se está tudo certo (em outro terminal, com o `bringup.launch` já rodando)
 
@@ -197,23 +197,25 @@ roswtf                               # não deve reportar nenhum ERRO (avisos so
 | `/e_stop` | `std_msgs/Bool` | publica (status observável) | `teleop_teclado.py` |
 | `/odom` | `nav_msgs/Odometry` | publica | plugin `libgazebo_ros_diff_drive` |
 | `/imu` | `sensor_msgs/Imu` | publica | plugin `libgazebo_ros_imu` |
-| `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node` **ou** `ekf_localizacao_uwb` (ver `localizacao`) |
+| `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node`, `ekf_localizacao_uwb` **ou** `localizacao_trilateracao` (ver `localizacao`) |
 | `/gazebo/model_states` | `gazebo_msgs/ModelStates` | publica | Gazebo (pose real, só para comparação manual) |
 | `/gtec/toa/ranging` | `gtec_msgs/Ranging` | publica | plugin `libgtec_uwb_plugin` (externo) |
 | `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina, só com `localizacao:=ekf_uwb` | `ekf_localizacao_uwb.py` |
+| `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina, só com `localizacao:=trilateracao` | `localizacao_trilateracao.py` |
 | `/gtec/toa/anchors` | `visualization_msgs/MarkerArray` | publica | plugin `libgtec_uwb_plugin` (externo) |
 
 ## Localização
 
 `launch/localizacao.launch` publica a TF `odom → base_footprint` e o
-tópico `/odometry/filtered`, através de **um entre dois métodos
-alternativos** (nunca os dois ao mesmo tempo — disputariam a mesma TF),
+tópico `/odometry/filtered`, através de **um entre três métodos
+alternativos** (nunca dois ao mesmo tempo — disputariam a mesma TF),
 escolhido pelo argumento `localizacao` do `bringup.launch`:
 
 | `localizacao` | Nó | Fontes fundidas | Referência absoluta? |
 |---|---|---|---|
-| `robot_localization` (padrão) | `ekf_localization_node` | `/odom` + `/imu` | Não — dead reckoning puro (ver "Limitações do dead reckoning"). |
-| `ekf_uwb` | `scripts/ekf_localizacao_uwb.py` | `/odom` + `/imu` + `/gtec/toa/ranging` | Sim — as âncoras UWB fecham o laço. |
+| `robot_localization` (padrão) | `ekf_localization_node` | `/odom` + `/imu` | Não — dead reckoning puro (ver "Ruído de drift nas rodas"). |
+| `ekf_uwb` | `scripts/ekf_localizacao_uwb.py` | `/odom` + `/imu` + `/gtec/toa/ranging` | Sim — EKF (Tabela 7.2) fundindo as âncoras UWB. |
+| `trilateracao` | `scripts/localizacao_trilateracao.py` | `/imu` (só orientação) + `/gtec/toa/ranging` | Sim, mas sem filtro nenhum — geometria pura, sem predição nem covariância real. |
 
 ```bash
 # EKF de dead reckoning (padrão)
@@ -222,6 +224,9 @@ roslaunch projeto_agrobot_uwb bringup.launch
 # EKF com correspondência conhecida (Thrun, Tabela 7.2), usando as âncoras
 # UWB como mapa de referência absoluta
 roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb
+
+# Trilateração básica (sem filtro), só com as âncoras UWB
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=trilateracao
 ```
 
 `ekf_uwb` é a implementação da Tabela 7.2 de *Probabilistic Robotics*
@@ -239,12 +244,23 @@ script.
 Parâmetros de `ekf_uwb.yaml` que provavelmente valem a pena calibrar:
 `sigma_r`/`sigma_phi` (ruído de medida) e `r_diag` (ruído de processo).
 
+`trilateracao` é o algoritmo de geometria pura em
+`scripts/exemplo_trilateracao.py` (ver docstring lá) plugado no ROS: a
+cada leitura de `/gtec/toa/ranging`, resolve `(x, y)` com a leitura mais
+recente de cada âncora (mínimo `min_ancoras`, padrão 3; descarta leituras
+mais velhas que `max_idade_leitura`) e publica direto, sem EKF nem
+suavização — como trilateração 2D não dá orientação, o `yaw` publicado
+vem direto da IMU. Serve de comparação didática com o `ekf_uwb`: mesma
+fonte de dados, mas sem predição nem fusão bayesiana — dá pra ver o
+quanto o EKF melhora sobre a solução geométrica "crua", principalmente
+com menos de 3 âncoras visíveis (aí o `ekf_uwb` continua predizendo com
+odom+IMU; o `trilateracao` simplesmente para de publicar).
+
 ## Sensor UWB
 
-O mundo tem 10 âncoras UWB fixas (`uwb_anchor0..9`, uma por planta,
-encostada no lado de fora de cada uma, a 0,15 m de altura — mesma altura
-do centro da planta) e o robô
-tem uma tag (`uwb_tag_link`) com o plugin
+O mundo tem 10 âncoras UWB fixas (`uwb_anchor0..9`, uma por planta, na
+cabeça de cada uma, a 0,35 m de altura — a planta vai até 0,30 m) e o
+robô tem uma tag (`uwb_tag_link`) com o plugin
 [`uwb_gazebosensorplugins`](https://github.com/AUVSL/UWB-Gazebo-Plugin)
 (externo — clonado à parte, não faz parte deste pacote nem do repositório).
 
@@ -285,12 +301,77 @@ base_link -> base_scan     (link mantido por massa/inércia; sem sensor de LiDAR
 
 Validar com: `rosrun tf2_tools view_frames.py`.
 
+## Ruído de drift nas rodas
+
+Não existe um parâmetro único chamado "drift" — a deriva da odometria de
+rodas neste projeto é **física**, não uma injeção de ruído. Vem de dois
+fatores:
+
+**1. Atrito das rodas com o chão** —
+[`urdf/agrobot.gazebo.xacro:15-45`](urdf/agrobot.gazebo.xacro#L15-L45)
+
+```xml
+<gazebo reference="wheel_left_link">
+  <mu1>0.1</mu1>
+  <mu2>0.1</mu2>
+  ...
+```
+
+Repetido para `wheel_right_link` e `caster_back_link`. `mu1`/`mu2` são os
+coeficientes de atrito ODE (longitudinal/lateral) — quanto **menor**,
+mais a roda pode escorregar fisicamente em vez de rolar sem deslizar.
+Esses valores (`0.1`) vieram copiados sem alteração do
+`turtlebot3_burger.gazebo.xacro` original (é uma cópia, não algo que este
+projeto tenha ajustado — ver comentário no topo do arquivo).
+
+**2. `odometrySource: encoder`** no plugin `libgazebo_ros_diff_drive`
+(mesmo arquivo, bloco do controlador) — o `/odom` é calculado integrando
+a velocidade angular das juntas das rodas, assumindo rolamento sem
+deslizar. Quando a roda escorrega de verdade (por causa do atrito baixo
+acima), a física "sabe" que o robô não andou tanto quanto o encoder
+registrou — e é exatamente essa diferença que vira erro acumulado em
+`/odom`, o que o EKF tenta (parcialmente) corrigir com o giroscópio.
+
+**Não tem** ruído gaussiano artificial somado à odometria de roda
+(diferente da IMU, que tem `<gaussianNoise>0.01</gaussianNoise>` em
+`agrobot.gazebo.xacro:116`). Se quiser um segundo mecanismo de drift —
+controlável, não só o físico — precisaria adicionar isso na mão (ex.: um
+nó que injeta ruído no `/odom` antes do EKF, ou baixar ainda mais o
+`mu1`/`mu2`).
+
+### `wheelRadius` / `wheelSeparation`
+
+Existem em **dois lugares** que precisam ficar consistentes manualmente
+— o plugin não lê a geometria do URDF automaticamente:
+
+- **O que o `libgazebo_ros_diff_drive` usa de fato** para calcular
+  `/odom` —
+  [`urdf/agrobot.gazebo.xacro:84-85`](urdf/agrobot.gazebo.xacro#L84-L85):
+  ```xml
+  <wheelSeparation>0.160</wheelSeparation>
+  <wheelDiameter>0.066</wheelDiameter>
+  ```
+- **A geometria física real das rodas**, em `agrobot.urdf.xacro`:
+  - Raio: `<cylinder length="0.018" radius="0.033"/>` — linha 64 (roda
+    esquerda, igual na direita). Bate com `wheelDiameter` do plugin
+    (`0,033 × 2 = 0,066`).
+  - Separação: não é um valor único, é derivado do `origin` das juntas —
+    `wheel_left_joint` (linha 48, `y=0.08`) e `wheel_right_joint` (linha
+    80, `y=-0.080`) → distância total `0,08 − (−0,08) = 0,16 m`, batendo
+    com `wheelSeparation`.
+
+Se mudar o raio/posição da roda no `agrobot.urdf.xacro` sem atualizar
+`wheelDiameter`/`wheelSeparation` no `agrobot.gazebo.xacro`, o `/odom`
+calculado descola da física real — uma fonte extra de drift, separada do
+atrito, e bem mais fácil de esquecer.
+
 ## Gravando um percurso para analisar a deriva
 
 O `bringup.launch` já grava automaticamente, sem comando manual: um nó
 `rosbag record` sobe junto com o resto e salva cada percurso em
 `bags/percurso_<timestamp>.bag`, com os tópicos `/odom`, `/imu`,
-`/odometry/filtered` e `/cmd_vel`.
+`/odometry/filtered`, `/cmd_vel`, `/gtec/toa/ranging` e
+`/gazebo/model_states` (ground truth).
 
 ```bash
 # comportamento padrão: grava
@@ -311,39 +392,65 @@ rosbag play bags/percurso_<timestamp>.bag
 Os `.bag` não são versionados no git (ver `.gitignore`) — geralmente são
 pesados demais para isso.
 
+### Reproduzindo um percurso gravado
+
+`rosbag play` só republica as mensagens gravadas nos tópicos originais —
+não sobe Gazebo, não simula física, não recria nada visual sozinho. Pra
+dirigir de novo a mesma "receita" de comandos numa simulação nova (com a
+física recalculada do zero), suba um `bringup.launch` sem teleop
+automático e reproduza só o `/cmd_vel` do bag antigo nele:
+
+```bash
+# terminal 1: simulação nova, sem teleop automático (senão as duas fontes
+# de /cmd_vel — o teleop e o rosbag play — disputariam o mesmo tópico)
+roslaunch projeto_agrobot_uwb bringup.launch teleop:=false
+
+# terminal 2: reproduz só os comandos de velocidade do percurso gravado
+source ~/catkin_ws/devel/setup.bash
+rosbag play bags/percurso_XXXX.bag --topics /cmd_vel
+```
+
+Isso repete a mesma sequência de comandos de velocidade, mas o resultado
+fica **parecido, não idêntico** ao percurso original — a física do
+Gazebo e o ruído da IMU/UWB não são determinísticos, então a trajetória
+real pode variar um pouco a cada execução, mesma sequência de comandos ou
+não. Se o percurso original não foi gravado com o robô no spawn padrão
+(`x:=0 y:=0 yaw:=0`), suba o `bringup.launch` novo com os mesmos
+`x`/`y`/`yaw` do original, senão o robô começa de um lugar diferente.
+
 ### Extraindo o percurso para CSV
 
 `scripts/bag_para_csv.py` lê um ou mais `.bag` e escreve um único CSV em
 **formato largo** — uma linha por instante de tempo, com colunas
-separadas por fonte (`odom_x, odom_y, odom_yaw, filtrada_x, filtrada_y,
-filtrada_yaw, ground_truth_x, ground_truth_y, ground_truth_yaw`, `yaw` já
-convertido do quaternion), pronto para comparar as fontes lado a lado
-numa planilha ou no pandas sem precisar pivotar depois:
+separadas por fonte de pose (`odom_x, odom_y, odom_yaw, filtrada_x,
+filtrada_y, filtrada_yaw, ground_truth_x, ground_truth_y,
+ground_truth_yaw`, `yaw` já convertido do quaternion) e por âncora UWB
+(`anchor0_range, anchor0_angle, anchor1_range, ...` — uma coluna por
+âncora que aparecer no `.bag`, `range` já em metros), pronto para
+comparar tudo lado a lado numa planilha ou no pandas sem precisar
+pivotar depois:
 
 ```bash
 rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag saida.csv
 ```
 
-As três fontes publicam em instantes diferentes e raramente batem o
-timestamp exato, então o script arredonda `t` para o múltiplo mais
-próximo de `--resolucao` (padrão `0.05` s = 20 Hz) e agrupa nesse
-intervalo — a leitura mais recente de cada fonte dentro do intervalo é a
-que fica na linha. Uma fonte sem leitura naquele intervalo sai com as
-colunas vazias, não com erro. Ajuste com `--resolucao 0.1`, por exemplo,
-se quiser linhas mais "cheias" ao custo de granularidade temporal.
+As fontes publicam em instantes diferentes e raramente batem o timestamp
+exato, então o script arredonda `t` para o múltiplo mais próximo de
+`--resolucao` (padrão `0.05` s = 20 Hz) e agrupa nesse intervalo — a
+leitura mais recente de cada fonte/âncora dentro do intervalo é a que
+fica na linha. Uma fonte/âncora sem leitura naquele intervalo sai com as
+colunas vazias, não com erro (as âncoras publicam ciclando, então é
+normal a maioria das células `anchorN_*` saírem vazias). Ajuste com
+`--resolucao 0.1`, por exemplo, se quiser linhas mais "cheias" ao custo
+de granularidade temporal.
 
-Por padrão o `bringup.launch` **não** grava `/gazebo/model_states`
-(ground truth) — só `/odom`, `/imu`, `/odometry/filtered`, `/cmd_vel`. Sem
-esse tópico, as colunas `ground_truth_*` saem vazias em todas as linhas,
-sem erro nem aviso. Para incluir a comparação com o ground truth,
-grave-o à parte, num segundo terminal, enquanto dirige:
-
-```bash
-rosbag record -O bags/ground_truth_XXXX.bag /gazebo/model_states
-```
-
-e passe os dois arquivos ao script — ele aceita vários `.bag` de uma vez
-e alinha o tempo pelo início mais antigo entre eles:
+O `bringup.launch` grava `/gazebo/model_states` (ground truth) e
+`/gtec/toa/ranging` (âncoras) por padrão desde a versão atual — se algum
+`.bag` mais antigo não tiver esses tópicos, as colunas `ground_truth_*` e
+`anchorN_*` correspondentes saem vazias em todas as linhas, sem erro nem
+aviso. Para juntar uma gravação separada desses tópicos a um `.bag`
+antigo, o script aceita vários `.bag` de uma vez e alinha o tempo pelo
+início mais antigo entre eles:
 
 ```bash
 rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag bags/ground_truth_XXXX.bag saida.csv

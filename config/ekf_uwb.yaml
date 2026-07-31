@@ -37,25 +37,23 @@ sigma_phi: 0.0873      # ~5 graus
 # Altura da âncora (mundo) e altura efetiva da tag (base_link + offset do
 # plugin) — ver nota [N1] do script: sem essa correção, o range 3D bruto
 # tem viés fixo sobre a distância horizontal que o modelo range-bearing 2D
-# espera. As âncoras ficam encostadas nas plantas a 0,15 m (ver .world),
-# não mais erguidas a 1,0 m — o viés ainda existe (dz = 0,15 - 0,31 m),
-# só que bem menor que antes.
-altura_ancora: 0.15
+# espera. As âncoras ficam na cabeça das plantas a 0,35 m (planta vai até
+# 0,30 m — ver .world); o viés (dz = 0,35 - 0,31 m) é bem pequeno agora.
+altura_ancora: 0.35
 altura_tag: 0.31
 
 # Mapa m: posições das âncoras no frame do mundo Gazebo (ver
 # worlds/campo_agricola.world, seção das âncoras UWB). id = anchorId do
-# gtec_msgs/Ranging (sufixo numérico de uwb_anchorN). Cada âncora fica
-# encostada no lado de fora da planta correspondente (y deslocado 0,10 m
-# para fora da fileira, longe do corredor central).
+# gtec_msgs/Ranging (sufixo numérico de uwb_anchorN). Cada âncora fica na
+# cabeça da planta correspondente — mesmo x/y, só muda a altura (z).
 ancoras:
-  - {id: 0, x: -0.8, y: -0.6}
-  - {id: 1, x: -0.4, y: -0.6}
-  - {id: 2, x:  0.0, y: -0.6}
-  - {id: 3, x:  0.4, y: -0.6}
-  - {id: 4, x:  0.8, y: -0.6}
-  - {id: 5, x: -0.8, y:  0.6}
-  - {id: 6, x: -0.4, y:  0.6}
-  - {id: 7, x:  0.0, y:  0.6}
-  - {id: 8, x:  0.4, y:  0.6}
-  - {id: 9, x:  0.8, y:  0.6}
+  - {id: 0, x: -0.8, y: -0.5}
+  - {id: 1, x: -0.4, y: -0.5}
+  - {id: 2, x:  0.0, y: -0.5}
+  - {id: 3, x:  0.4, y: -0.5}
+  - {id: 4, x:  0.8, y: -0.5}
+  - {id: 5, x: -0.8, y:  0.5}
+  - {id: 6, x: -0.4, y:  0.5}
+  - {id: 7, x:  0.0, y:  0.5}
+  - {id: 8, x:  0.4, y:  0.5}
+  - {id: 9, x:  0.8, y:  0.5}

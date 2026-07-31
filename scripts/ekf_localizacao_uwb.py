@@ -54,16 +54,16 @@ def normalize_angle(a):
 # parâmetro ~ancoras — config/ekf_uwb.yaml traz a mesma lista, mas o nó
 # não fica sem mapa se for rodado sem carregar o yaml (ex.: rosrun direto).
 ANCORAS_PADRAO = [
-    {"id": 0, "x": -0.8, "y": -0.6},
-    {"id": 1, "x": -0.4, "y": -0.6},
-    {"id": 2, "x": 0.0, "y": -0.6},
-    {"id": 3, "x": 0.4, "y": -0.6},
-    {"id": 4, "x": 0.8, "y": -0.6},
-    {"id": 5, "x": -0.8, "y": 0.6},
-    {"id": 6, "x": -0.4, "y": 0.6},
-    {"id": 7, "x": 0.0, "y": 0.6},
-    {"id": 8, "x": 0.4, "y": 0.6},
-    {"id": 9, "x": 0.8, "y": 0.6},
+    {"id": 0, "x": -0.8, "y": -0.5},
+    {"id": 1, "x": -0.4, "y": -0.5},
+    {"id": 2, "x": 0.0, "y": -0.5},
+    {"id": 3, "x": 0.4, "y": -0.5},
+    {"id": 4, "x": 0.8, "y": -0.5},
+    {"id": 5, "x": -0.8, "y": 0.5},
+    {"id": 6, "x": -0.4, "y": 0.5},
+    {"id": 7, "x": 0.0, "y": 0.5},
+    {"id": 8, "x": 0.4, "y": 0.5},
+    {"id": 9, "x": 0.8, "y": 0.5},
 ]
 
 
@@ -277,15 +277,14 @@ if __name__ == "__main__":
 # NOTAS DE IMPLEMENTAÇÃO
 #
 # [N1] O plugin gtec_uwb_plugin mede a distância 3D reta entre a âncora
-#      (z=0,15 m, encostada na planta — ver .world) e a tag (fundida no
+#      (z=0,35 m, na cabeça da planta — ver .world) e a tag (fundida no
 #      base_link + o tag_z_offset=0,3 m do plugin, ~0,31 m acima do chão —
-#      ver agrobot.gazebo.xacro). Essa diferença de altura (~0,16 m) é
-#      pequena, mas ainda relevante frente às distâncias horizontais do
-#      cenário (âncoras a poucos cm/dezenas de cm do robô em vários
-#      pontos do percurso); sem essa projeção o filtro veria uma distância
-#      horizontal artificialmente maior que a real. altura_ancora e
-#      altura_tag em config/ekf_uwb.yaml são constantes conhecidas (não
-#      estimadas), coerente com a hipótese de mapa conhecido da Tabela 7.2.
+#      ver agrobot.gazebo.xacro). Essa diferença de altura (~0,04 m) é
+#      pequena, mas a projeção continua feita por completude/consistência
+#      com a hipótese de mapa conhecido da Tabela 7.2 (altura_ancora e
+#      altura_tag em config/ekf_uwb.yaml são constantes conhecidas, não
+#      estimadas) — sem ela o filtro veria uma distância horizontal um
+#      pouco maior que a real.
 #
 # [N2] v/w é indefinido em w=0; satura-se w perto de zero só para o código
 #      não dividir por zero. Com eps_w=1e-4 o arco resultante é

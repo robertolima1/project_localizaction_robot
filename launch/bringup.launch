@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
-<!-- Launch único: Gazebo + robot_state_publisher + EKF (robot_localization ou
-     ekf_uwb, ver arg localizacao) + RViz + teleop + gravação do percurso. -->
+<!-- Launch único: Gazebo + robot_state_publisher + localização
+     (robot_localization, ekf_uwb ou trilateracao, ver arg localizacao) +
+     RViz + teleop + gravação do percurso. -->
 <launch>
   <arg name="mundo" default="$(find projeto_agrobot_uwb)/worlds/campo_agricola.world"/>
   <arg name="x" default="0.0"/>
@@ -10,7 +11,7 @@
   <arg name="rviz" default="true"/>
   <arg name="teleop" default="true"/>
   <arg name="gravar" default="true"/>
-  <arg name="localizacao" default="robot_localization"/>  <!-- robot_localization | ekf_uwb -->
+  <arg name="localizacao" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
 
   <include file="$(find projeto_agrobot_uwb)/launch/gazebo.launch">
     <arg name="mundo" value="$(arg mundo)"/>
@@ -40,7 +41,7 @@
        gravar:=false se não quiser gerar o arquivo (ex.: teste rápido). -->
   <group if="$(arg gravar)">
     <node pkg="rosbag" type="record" name="rosbag_record_percurso"
-          args="-o $(find projeto_agrobot_uwb)/bags/percurso /odom /imu /odometry/filtered /cmd_vel"
+          args="-o $(find projeto_agrobot_uwb)/bags/percurso /odom /imu /odometry/filtered /cmd_vel /gtec/toa/ranging /gazebo/model_states"
           output="screen"/>
   </group>
 </launch>
