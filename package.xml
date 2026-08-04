@@ -17,6 +17,7 @@
   <depend>urdf</depend>
   <depend>xacro</depend>
   <depend>gazebo_ros</depend>
+  <depend>gazebo_msgs</depend>
   <depend>robot_localization</depend>
   <depend>tf2_ros</depend>
   <depend>sensor_msgs</depend>
@@ -27,6 +28,8 @@
   <depend>rviz</depend>
   <depend>turtlebot3_description</depend>
   <exec_depend>rosbag</exec_depend>
+  <exec_depend>python3-psutil</exec_depend>  <!-- scripts/perfil_recursos.py -->
+
 
   <!-- Plugin de sensor UWB simulado (externo, não faz parte deste pacote —
        clonado em ~/catkin_ws/src/uwb_gazebosensorplugins e

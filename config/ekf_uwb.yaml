@@ -9,7 +9,7 @@ odom_frame: odom
 base_frame: base_footprint
 publish_tf: true
 max_dt: 1.0          # s; descarta saltos de tempo do /odom
-eps_w: 1.0e-4        # satura w perto de zero p/ evitar divisão por zero (linha 2/3)
+eps_w: 1.0e-3        # satura w perto de zero p/ evitar divisão por zero (linha 2/3)
 
 # Pose de spawn do robô no frame do mundo Gazebo (mesmos x/y/yaw do
 # gazebo.launch). O bringup.launch já repassa os valores automaticamente;
@@ -20,7 +20,7 @@ origem_yaw: 0.0
 
 # Sigma_0: incerteza inicial (x/y folgados — a pose de spawn é só uma
 # convenção; theta mais apertado pois o robô nasce alinhado ao eixo do mundo).
-sigma0_diag: [0.25, 0.25, 0.05]
+sigma0_diag: [0.0000025, 0.0000025, 0.0000005]
 
 # R_t (linha 4 da Tabela 7.2): ruído de processo no espaço de estado
 # (x, y, theta), constante — mesma simplificação usada em ekf_local.yaml
@@ -31,7 +31,7 @@ r_diag: [0.01, 0.01, 0.01]
 # Referência: UwbPlugin.cpp injeta ~5° (3-sigma) de erro angular e alguns
 # cm de erro de range em LOS; os valores aqui ficam um pouco folgados
 # porque o filtro não sabe se cada medida foi LOS ou NLOS.
-sigma_r: 0.05
+sigma_r: 0.5
 sigma_phi: 0.0873      # ~5 graus
 
 # Altura da âncora (mundo) e altura efetiva da tag (base_link + offset do
@@ -42,18 +42,14 @@ sigma_phi: 0.0873      # ~5 graus
 altura_ancora: 0.35
 altura_tag: 0.31
 
-# Mapa m: posições das âncoras no frame do mundo Gazebo (ver
-# worlds/campo_agricola.world, seção das âncoras UWB). id = anchorId do
+# Mapa m: posições das âncoras no frame do mundo Gazebo. id = anchorId do
 # gtec_msgs/Ranging (sufixo numérico de uwb_anchorN). Cada âncora fica na
 # cabeça da planta correspondente — mesmo x/y, só muda a altura (z).
-ancoras:
-  - {id: 0, x: -0.8, y: -0.5}
-  - {id: 1, x: -0.4, y: -0.5}
-  - {id: 2, x:  0.0, y: -0.5}
-  - {id: 3, x:  0.4, y: -0.5}
-  - {id: 4, x:  0.8, y: -0.5}
-  - {id: 5, x: -0.8, y:  0.5}
-  - {id: 6, x: -0.4, y:  0.5}
-  - {id: 7, x:  0.0, y:  0.5}
-  - {id: 8, x:  0.4, y:  0.5}
-  - {id: 9, x:  0.8, y:  0.5}
+#
+# n_ancoras gera o mapa via scripts/layout_ancoras.py (mesma função que
+# scripts/spawn_campo.py usa pra popular o Gazebo — ver
+# worlds/campo_agricola.world) em vez de listar posição por posição; o
+# bringup.launch repassa o arg n_ancoras até aqui. Pra usar posições
+# customizadas em vez do layout gerado, defina `ancoras:` (lista de
+# {id, x, y}) — tem prioridade sobre n_ancoras.
+n_ancoras: 10

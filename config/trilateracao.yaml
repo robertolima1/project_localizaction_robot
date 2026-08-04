@@ -27,16 +27,7 @@ origem_yaw: 0.0
 altura_ancora: 0.35
 altura_tag: 0.31
 
-# Mapa m: mesmas posições de config/ekf_uwb.yaml (ver
-# worlds/campo_agricola.world). id = anchorId do gtec_msgs/Ranging.
-ancoras:
-  - {id: 0, x: -0.8, y: -0.5}
-  - {id: 1, x: -0.4, y: -0.5}
-  - {id: 2, x:  0.0, y: -0.5}
-  - {id: 3, x:  0.4, y: -0.5}
-  - {id: 4, x:  0.8, y: -0.5}
-  - {id: 5, x: -0.8, y:  0.5}
-  - {id: 6, x: -0.4, y:  0.5}
-  - {id: 7, x:  0.0, y:  0.5}
-  - {id: 8, x:  0.4, y:  0.5}
-  - {id: 9, x:  0.8, y:  0.5}
+# Mapa m: mesma fonte de config/ekf_uwb.yaml — ver comentário lá sobre
+# n_ancoras/scripts/layout_ancoras.py. `ancoras:` (lista de {id, x, y})
+# tem prioridade sobre n_ancoras, se definida.
+n_ancoras: 10

@@ -23,15 +23,17 @@ com um elemento — não muda o resultado, só não há o que somar).
 
 Este projeto não tem frame `map` (frame global é `odom`, ver premissa do
 projeto) — este nó publica odom->base_footprint diretamente, do mesmo
-jeito que o ekf_localization_node. Isso só é consistente se o frame odom
-coincidir, em t=0, com o frame do Gazebo onde as âncoras estão declaradas
-no .world — o que vale exatamente quando o robô nasce em x=y=yaw=0
-(padrão do bringup.launch). Subindo com x/y/yaw != 0, repita os mesmos
-valores em ~origem_x/~origem_y/~origem_yaw (o bringup.launch já faz isso
-automaticamente — ver launch/localizacao.launch).
+jeito que o ekf_localization_node. O frame odom é feito coincidir com o
+frame do Gazebo onde as âncoras estão declaradas no .world inicializando
+o estado (mu) com a pose de spawn ~origem_x/~origem_y/~origem_yaw, em vez
+de com (0,0,0) — assim o robô já nasce, no EKF, na mesma pose em que
+nasce no Gazebo (o bringup.launch propaga esses valores automaticamente
+— ver launch/localizacao.launch).
 """
 
 import math
+import os
+import sys
 import threading
 
 import numpy as np
@@ -43,28 +45,12 @@ from sensor_msgs.msg import Imu
 from tf.transformations import quaternion_from_euler
 from gtec_msgs.msg import Ranging
 
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from layout_ancoras import N_ANCORAS_PADRAO, gerar_ancoras  # noqa: E402
+
 
 def normalize_angle(a):
     return math.atan2(math.sin(a), math.cos(a))
-
-
-# Mapa m da Tabela 7.2: posições das âncoras no frame do mundo Gazebo (ver
-# worlds/campo_agricola.world, seção das âncoras UWB). id = anchorId do
-# gtec_msgs/Ranging (sufixo numérico de uwb_anchorN). Valor padrão do
-# parâmetro ~ancoras — config/ekf_uwb.yaml traz a mesma lista, mas o nó
-# não fica sem mapa se for rodado sem carregar o yaml (ex.: rosrun direto).
-ANCORAS_PADRAO = [
-    {"id": 0, "x": -0.8, "y": -0.5},
-    {"id": 1, "x": -0.4, "y": -0.5},
-    {"id": 2, "x": 0.0, "y": -0.5},
-    {"id": 3, "x": 0.4, "y": -0.5},
-    {"id": 4, "x": 0.8, "y": -0.5},
-    {"id": 5, "x": -0.8, "y": 0.5},
-    {"id": 6, "x": -0.4, "y": 0.5},
-    {"id": 7, "x": 0.0, "y": 0.5},
-    {"id": 8, "x": 0.4, "y": 0.5},
-    {"id": 9, "x": 0.8, "y": 0.5},
-]
 
 
 class EKFLocalizacaoUWB(object):
@@ -72,15 +58,15 @@ class EKFLocalizacaoUWB(object):
     def __init__(self):
         self.lock = threading.Lock()
 
-        origem_x = rospy.get_param("~origem_x", 0.0)
-        origem_y = rospy.get_param("~origem_y", 0.0)
+        origem_x = rospy.get_param("~origem_x", -0.8)
+        origem_y = rospy.get_param("~origem_y", 0.3)
         origem_yaw = rospy.get_param("~origem_yaw", 0.0)
 
-        self.mu = np.zeros((3, 1))
-        self.Sigma = np.diag(rospy.get_param("~sigma0_diag", [0.25, 0.25, 0.05]))
+        self.mu = np.array([[origem_x], [origem_y], [normalize_angle(origem_yaw)]])
+        self.Sigma = np.diag(rospy.get_param("~sigma0_diag", [0.0000025, 0.0000025, 0.0000005]))
         self.R = np.diag(rospy.get_param("~r_diag", [0.01, 0.01, 0.01]))
-        sigma_r = rospy.get_param("~sigma_r", 0.05)
-        sigma_phi = rospy.get_param("~sigma_phi", 0.0873)
+        sigma_r = rospy.get_param("~sigma_r", 0.005)
+        sigma_phi = rospy.get_param("~sigma_phi", 0.00873)
         self.Q = np.diag([sigma_r ** 2, sigma_phi ** 2])
 
         # Ver nota [N1]: projeta o range 3D bruto do plugin (âncora e tag em
@@ -91,19 +77,29 @@ class EKFLocalizacaoUWB(object):
         self.dz2 = (altura_ancora - altura_tag) ** 2
 
         self.max_dt = rospy.get_param("~max_dt", 1.0)
-        self.eps_w = rospy.get_param("~eps_w", 1e-4)      # ver nota [N2]
+        self.eps_w = rospy.get_param("~eps_w", 1e-3)      # ver nota [N2]
         self.odom_frame = rospy.get_param("~odom_frame", "odom")
         self.base_frame = rospy.get_param("~base_frame", "base_footprint")
         self.publish_tf = rospy.get_param("~publish_tf", True)
 
-        # Mapa m: converte cada âncora do frame do mundo Gazebo (onde estão
-        # declaradas no .world) para o frame odom, via a pose de spawn
-        # origem_x/y/yaw — ver docstring acima e nota [N3].
-        c, s = math.cos(origem_yaw), math.sin(origem_yaw)
+        # Mapa m: âncoras já estão no frame do mundo Gazebo (onde são
+        # declaradas no .world) e mu0 agora carrega a pose de spawn
+        # origem_x/y/yaw, então o mapa é usado como está, sem deslocar
+        # — ver docstring acima e nota [N3].
+        n_ancoras = rospy.get_param("~n_ancoras", N_ANCORAS_PADRAO)
         self.mapa = {}
-        for anc in rospy.get_param("~ancoras", ANCORAS_PADRAO):
-            wx, wy = anc["x"] - origem_x, anc["y"] - origem_y
-            self.mapa[int(anc["id"])] = (c * wx + s * wy, -s * wx + c * wy)
+        for anc in rospy.get_param("~ancoras", gerar_ancoras(n_ancoras)):
+            self.mapa[int(anc["id"])] = (anc["x"], anc["y"])
+
+        rospy.loginfo(
+            "EKF UWB init: origem_x=%.3f origem_y=%.3f origem_yaw=%.3f | "
+            "mu0=(%.3f, %.3f, %.3f) [deve bater com a pose de spawn do robo] | "
+            "%d ancoras no mapa: %s",
+            origem_x, origem_y, origem_yaw,
+            self.mu[0, 0], self.mu[1, 0], self.mu[2, 0],
+            len(self.mapa),
+            {k: (round(v[0], 3), round(v[1], 3)) for k, v in self.mapa.items()},
+        )
 
         self.u = np.zeros((2, 1))         # (v, w) montado a partir de odom+imu
         self.w_imu = 0.0
@@ -111,15 +107,15 @@ class EKFLocalizacaoUWB(object):
 
         self.tf_broadcaster = tf2_ros.TransformBroadcaster()
         self.pub_odom = rospy.Publisher("/odometry/filtered", Odometry,
-                                        queue_size=10)
+                                        queue_size=1)
 
         odom_topic = rospy.get_param("~odom_topic", "/odom")
         imu_topic = rospy.get_param("~imu_topic", "/imu")
         ranging_topic = rospy.get_param("~ranging_topic", "/gtec/toa/ranging")
 
-        rospy.Subscriber(imu_topic, Imu, self.cb_imu, queue_size=50)
-        rospy.Subscriber(odom_topic, Odometry, self.cb_odom, queue_size=50)
-        rospy.Subscriber(ranging_topic, Ranging, self.cb_ranging, queue_size=20)
+        rospy.Subscriber(imu_topic, Imu, self.cb_imu, queue_size=1)
+        rospy.Subscriber(odom_topic, Odometry, self.cb_odom, queue_size=1)
+        rospy.Subscriber(ranging_topic, Ranging, self.cb_ranging, queue_size=1)
 
         rospy.loginfo("EKF UWB (Tabela 7.2, correspondência conhecida) | "
                       "%d âncoras no mapa", len(self.mapa))
@@ -156,21 +152,27 @@ class EKFLocalizacaoUWB(object):
         th = self.mu[2, 0]
 
         if abs(w) < self.eps_w:
-            w = self.eps_w if w >= 0.0 else -self.eps_w      # nota [N2]
+            # nota [N2]: r = v/w é indefinido em w=0 — usa o caso limite
+            # w->0 do modelo de velocidade, que é o movimento retilíneo
+            # exato (não uma saturação numérica de w).
+            dx = v * dt * math.cos(th)
+            dy = v * dt * math.sin(th)
+            dth = w * dt
+        else:
+            r = v / w
+            thp = th + w * dt
 
-        r = v / w
-        thp = th + w * dt
-
-        # LINHA 2 (modelo de velocidade, cap. 5.3, derivação correta)
-        dx = r * (math.sin(thp) - math.sin(th))
-        dy = r * (math.cos(th) - math.cos(thp))
-        dth = w * dt
+            # LINHA 2 (modelo de velocidade, cap. 5.3, derivação correta)
+            dx = r * (math.sin(thp) - math.sin(th))
+            dy = r * (math.cos(th) - math.cos(thp))
+            dth = w * dt
 
         # LINHA 3: Jacobiano de g em relação a (x, y, theta). O sinal do
         # termo em theta aqui é o da derivada de fato (dg_x/dtheta,
         # dg_y/dtheta) — a Tabela 7.2 impressa no livro traz esse termo
-        # com o sinal trocado; corrigido aqui.
-        G = np.array([[1.0, 0.0, r * (math.cos(thp) - math.cos(th))],
+        # com o sinal trocado; corrigido aqui. -dy/dx valem tanto para o
+        # arco quanto para o limite retilíneo (mesma derivada).
+        G = np.array([[1.0, 0.0, -dy],
                       [0.0, 1.0, dx],
                       [0.0, 0.0, 1.0]])
 
@@ -189,7 +191,7 @@ class EKFLocalizacaoUWB(object):
         if math.isnan(msg.angle):
             return                                    # sem return_angle
 
-        r_medido = msg.range / 1000.0                 # mm -> m
+        r_medido = msg.range / 1000.0                 # mm -> m        
         r_horizontal_sq = r_medido * r_medido - self.dz2
         if r_horizontal_sq <= 0.0:
             return                                    # nota [N1]
@@ -286,14 +288,17 @@ if __name__ == "__main__":
 #      estimadas) — sem ela o filtro veria uma distância horizontal um
 #      pouco maior que a real.
 #
-# [N2] v/w é indefinido em w=0; satura-se w perto de zero só para o código
-#      não dividir por zero. Com eps_w=1e-4 o arco resultante é
-#      indistinguível de uma reta na escala do robô.
+# [N2] v/w é indefinido em w=0 (r = v/w). Abaixo de eps_w=1e-4 rad/s,
+#      _predict usa o caso limite w->0 do modelo de velocidade — reta
+#      exata (dx=v*dt*cos(th), dy=v*dt*sin(th)) — em vez de dividir por um
+#      w saturado artificialmente perto de zero.
 #
 # [N3] O frame `odom` deste projeto não tem origem física própria — ele é,
 #      por convenção do ROS, onde quer que o robô esteja quando o nó de
 #      odometria liga. Como o .world define as âncoras em coordenadas
-#      absolutas do Gazebo, a única forma de usar esse mapa sem introduzir
-#      um frame novo é assumir (e documentar) que odom coincide com o
-#      mundo em t=0 — verdadeiro sempre que o spawn for x=y=yaw=0.
+#      absolutas do Gazebo, este nó faz `odom` coincidir com o mundo desde
+#      t=0 inicializando mu com a pose de spawn (~origem_x/y/yaw) em vez de
+#      (0,0,0) — o mapa de âncoras então é usado direto, sem deslocamento.
+#      Se ~origem_x/y/yaw não bater com a pose real de spawn no .launch,
+#      mu0 e o mapa ficam inconsistentes entre si.
 # ===========================================================================

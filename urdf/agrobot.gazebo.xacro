@@ -8,13 +8,21 @@
   <xacro:arg name="laser_visual" default="false"/>
   <xacro:arg name="imu_visual"   default="false"/>
 
+  <!-- Atrito das rodas (fonte física do drift de odometria — ver seção
+       "Ruído de drift nas rodas" do README). Parametrizado via xacro:arg
+       para variar entre rodadas de experimento sem editar este arquivo;
+       repassado pelo bringup.launch (arg mu_rodas, padrão 0.1 — mesmo
+       valor herdado do turtlebot3_burger original). Mesmo valor nas
+       rodas e no caster, como já era antes de virar parâmetro. -->
+  <xacro:arg name="mu_rodas" default="0.1"/>
+
   <gazebo reference="base_link">
     <material>Gazebo/DarkGrey</material>
   </gazebo>
 
   <gazebo reference="wheel_left_link">
-    <mu1>0.1</mu1>
-    <mu2>0.1</mu2>
+    <mu1>$(arg mu_rodas)</mu1>
+    <mu2>$(arg mu_rodas)</mu2>
     <kp>500000.0</kp>
     <kd>10.0</kd>
     <minDepth>0.001</minDepth>
@@ -24,8 +32,8 @@
   </gazebo>
 
   <gazebo reference="wheel_right_link">
-    <mu1>0.1</mu1>
-    <mu2>0.1</mu2>
+    <mu1>$(arg mu_rodas)</mu1>
+    <mu2>$(arg mu_rodas)</mu2>
     <kp>500000.0</kp>
     <kd>10.0</kd>
     <minDepth>0.001</minDepth>
@@ -35,8 +43,8 @@
   </gazebo>
 
   <gazebo reference="caster_back_link">
-    <mu1>0.1</mu1>
-    <mu2>0.1</mu2>
+    <mu1>$(arg mu_rodas)</mu1>
+    <mu2>$(arg mu_rodas)</mu2>
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
@@ -105,7 +113,12 @@
        0.01 como valor único: é uma ordem de grandeza abaixo do "salto"
        plausível de um giroscópio MEMS barato (~0.01-0.05 rad/s de desvio)
        e, para o acelerômetro, corresponde a ruído moderado (~0.01 m/s²).
-       Avise se quiser refinar isso trocando de plugin. -->
+       Avise se quiser refinar isso trocando de plugin.
+
+       Parametrizado via xacro:arg (gaussian_noise_imu) para variar entre
+       rodadas de experimento sem editar este arquivo — repassado pelo
+       bringup.launch (arg gaussian_noise_imu, mesmo padrão 0.01). -->
+  <xacro:arg name="gaussian_noise_imu" default="0.01"/>
   <gazebo>
     <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
       <alwaysOn>true</alwaysOn>
@@ -113,7 +126,7 @@
       <frameName>imu_link</frameName>
       <topicName>imu</topicName>
       <serviceName>imu_service</serviceName>
-      <gaussianNoise>0.01</gaussianNoise>
+      <gaussianNoise>$(arg gaussian_noise_imu)</gaussianNoise>
       <updateRate>100</updateRate>   <!-- era 0 = "o mais rápido possível";
              medido com rostopic hz, isso publicava a ~1000 Hz (cada passo
              de física), sem relação com o <update_rate> do <sensor> acima

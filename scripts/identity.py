@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from datetime import datetime
 import math
+import os
+import sys
 from dataclasses import dataclass
 from typing import Dict, Deque
 from collections import deque
@@ -11,6 +13,9 @@ from geometry_msgs.msg import PoseStamped, Quaternion
 from gtec_msgs.msg import Ranging  # ajuste conforme o pacote exato
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 import tf2_ros
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from layout_ancoras import N_ANCORAS_PADRAO, gerar_ancoras  # noqa: E402
 
 COUNT_MEAN = 1
 ROBOT_NAME = "robot"
@@ -50,33 +55,15 @@ class IdentityNode(object):
         self.latest_ranges: Dict[int, float] = {}
         self.latest_ranges_real: Dict[int, float] = {}
 
-        # self.anchors: Dict[int, Anchor] = {
-        #     0: Anchor(-1.5, 2.0, datetime.now(), 0),
-        #     1: Anchor(-0.5, 2.0, datetime.now(), 0),
-        #     2: Anchor( 0.5, 2.0, datetime.now(), 0),
-        #     3: Anchor( 1.5, 2.0, datetime.now(), 0),
-        #     4: Anchor( 2.5, 2.0, datetime.now(), 0),
-        #     5: Anchor(-1.5, 0.5, datetime.now(), 0),
-        #     6: Anchor(-0.5, 0.5, datetime.now(), 0),
-        #     7: Anchor( 0.5, 0.5, datetime.now(), 0),
-        #     8: Anchor( 1.5, 0.5, datetime.now(), 0),
-        #     9: Anchor( 2.5, 0.5, datetime.now(), 0),
-        # }
-
-        # Posições copiadas de worlds/campo_agricola.world (mesmo x/y de cada
-        # âncora uwb_anchor0..9 — ver config/ekf_uwb.yaml, que usa o mesmo mapa).
+        # Posições geradas por layout_ancoras.gerar_ancoras — mesma fonte
+        # usada por scripts/spawn_campo.py para popular o Gazebo e por
+        # ekf_localizacao_uwb.py/localizacao_trilateracao.py (ver
+        # config/ekf_uwb.yaml). ~n_ancoras controla a quantidade; ~ancoras
+        # (lista de {id,x,y}) sobrepõe com posições customizadas.
+        n_ancoras = rospy.get_param("~n_ancoras", N_ANCORAS_PADRAO)
         self.anchors: Dict[int, Anchor] = {
-            0: Anchor(-0.8, -0.5, datetime.now(), 0),  # uwb_anchor0
-            1: Anchor(-0.4, -0.5, datetime.now(), 0),  # uwb_anchor1
-            2: Anchor( 0.0, -0.5, datetime.now(), 0),  # uwb_anchor2
-            3: Anchor( 0.4, -0.5, datetime.now(), 0),  # uwb_anchor3
-            4: Anchor( 0.8, -0.5, datetime.now(), 0),  # uwb_anchor4
-
-            5: Anchor(-0.8,  0.5, datetime.now(), 0),  # uwb_anchor5
-            6: Anchor(-0.4,  0.5, datetime.now(), 0),  # uwb_anchor6
-            7: Anchor( 0.0,  0.5, datetime.now(), 0),  # uwb_anchor7
-            8: Anchor( 0.4,  0.5, datetime.now(), 0),  # uwb_anchor8
-            9: Anchor( 0.8,  0.5, datetime.now(), 0),  # uwb_anchor9
+            int(anc["id"]): Anchor(anc["x"], anc["y"], datetime.now(), 0)
+            for anc in rospy.get_param("~ancoras", gerar_ancoras(n_ancoras))
         }
         # Janela deslizante por âncora (últimos 10)
         self.range_window: Dict[int, Deque[float]] = {

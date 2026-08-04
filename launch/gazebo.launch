@@ -8,6 +8,9 @@
   <arg name="y" default="0.0"/>
   <arg name="yaw" default="0.0"/>
   <arg name="gui" default="true"/>
+  <arg name="mu_rodas" default="0.1"/>              <!-- atrito das rodas — ver README "Ruído de drift nas rodas" -->
+  <arg name="gaussian_noise_imu" default="0.01"/>    <!-- ruído da IMU (gyro+accel) -->
+  <arg name="n_ancoras" default="10"/>               <!-- qtde de âncoras UWB (+ plantas correspondentes) — ver scripts/layout_ancoras.py -->
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(arg mundo)"/>
@@ -15,9 +18,19 @@
   </include>
 
   <param name="robot_description"
-         command="$(find xacro)/xacro --inorder $(find projeto_agrobot_uwb)/urdf/agrobot.urdf.xacro"/>
+         command="$(find xacro)/xacro --inorder $(find projeto_agrobot_uwb)/urdf/agrobot.urdf.xacro
+                  mu_rodas:=$(arg mu_rodas) gaussian_noise_imu:=$(arg gaussian_noise_imu)"/>
 
   <node name="spawn_agrobot" pkg="gazebo_ros" type="spawn_model" output="screen"
         args="-urdf -model agrobot -param robot_description
               -x $(arg x) -y $(arg y) -z 0.01 -Y $(arg yaw)"/>
+
+  <!-- Plantas + âncoras UWB (ver worlds/campo_agricola.world): spawnadas em
+       runtime em vez de fixas no .world, pra n_ancoras poder mudar sem
+       editar XML. Serviço /gazebo/spawn_sdf_model só existe depois do
+       gzserver subir — rospy.wait_for_service() dentro do node cobre isso,
+       sem precisar de <depend>/ordem especial entre os nodes. -->
+  <node name="spawn_campo" pkg="projeto_agrobot_uwb" type="spawn_campo.py" output="screen">
+    <param name="n_ancoras" value="$(arg n_ancoras)"/>
+  </node>
 </launch>

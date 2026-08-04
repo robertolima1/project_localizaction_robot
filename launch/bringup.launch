@@ -13,12 +13,25 @@
   <arg name="gravar" default="true"/>
   <arg name="localizacao" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
 
+  <!-- Ruído — parametrizado para variar entre rodadas de experimento sem
+       editar arquivo nenhum (ver README "Parametrizando ruído para
+       experimentos"). Padrões batem com o comportamento de antes de
+       virarem parâmetro. -->
+  <arg name="mu_rodas" default="0.1"/>              <!-- atrito das rodas (drift de odometria) -->
+  <arg name="gaussian_noise_imu" default="0.01"/>    <!-- ruído da IMU (gyro+accel) -->
+  <arg name="sigma_range_extra" default="0.0"/>      <!-- m, ruído extra no range UWB -->
+  <arg name="sigma_angle_extra" default="0.0"/>      <!-- rad, ruído extra no angle UWB -->
+  <arg name="n_ancoras" default="10"/>               <!-- qtde de âncoras UWB (+ plantas) — ver scripts/layout_ancoras.py -->
+
   <include file="$(find projeto_agrobot_uwb)/launch/gazebo.launch">
     <arg name="mundo" value="$(arg mundo)"/>
     <arg name="x" value="$(arg x)"/>
     <arg name="y" value="$(arg y)"/>
     <arg name="yaw" value="$(arg yaw)"/>
     <arg name="gui" value="$(arg gui)"/>
+    <arg name="mu_rodas" value="$(arg mu_rodas)"/>
+    <arg name="gaussian_noise_imu" value="$(arg gaussian_noise_imu)"/>
+    <arg name="n_ancoras" value="$(arg n_ancoras)"/>
   </include>
 
   <include file="$(find projeto_agrobot_uwb)/launch/display.launch">
@@ -30,6 +43,9 @@
     <arg name="origem_x" value="$(arg x)"/>
     <arg name="origem_y" value="$(arg y)"/>
     <arg name="origem_yaw" value="$(arg yaw)"/>
+    <arg name="sigma_range_extra" value="$(arg sigma_range_extra)"/>
+    <arg name="sigma_angle_extra" value="$(arg sigma_angle_extra)"/>
+    <arg name="n_ancoras" value="$(arg n_ancoras)"/>
   </include>
 
   <group if="$(arg teleop)">

@@ -25,6 +25,8 @@ pelos outros dois métodos deste projeto.
 """
 
 import math
+import os
+import sys
 import threading
 
 import numpy as np
@@ -36,19 +38,8 @@ from sensor_msgs.msg import Imu
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from gtec_msgs.msg import Ranging
 
-# Mesmo mapa de âncoras do ekf_localizacao_uwb.py — ver worlds/campo_agricola.world.
-ANCORAS_PADRAO = [
-    {"id": 0, "x": -0.8, "y": -0.5},
-    {"id": 1, "x": -0.4, "y": -0.5},
-    {"id": 2, "x": 0.0, "y": -0.5},
-    {"id": 3, "x": 0.4, "y": -0.5},
-    {"id": 4, "x": 0.8, "y": -0.5},
-    {"id": 5, "x": -0.8, "y": 0.5},
-    {"id": 6, "x": -0.4, "y": 0.5},
-    {"id": 7, "x": 0.0, "y": 0.5},
-    {"id": 8, "x": 0.4, "y": 0.5},
-    {"id": 9, "x": 0.8, "y": 0.5},
-]
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from layout_ancoras import N_ANCORAS_PADRAO, gerar_ancoras  # noqa: E402
 
 
 def trilatera(ancoras_xy, distancias):
@@ -85,8 +76,9 @@ class LocalizacaoTrilateracao(object):
         # Mesma conversão mundo->odom do ekf_localizacao_uwb.py — ver nota
         # [N1] lá para o porquê dessa suposição (spawn em x=y=yaw=0).
         c, s = math.cos(origem_yaw), math.sin(origem_yaw)
+        n_ancoras = rospy.get_param("~n_ancoras", N_ANCORAS_PADRAO)
         self.mapa = {}
-        for anc in rospy.get_param("~ancoras", ANCORAS_PADRAO):
+        for anc in rospy.get_param("~ancoras", gerar_ancoras(n_ancoras)):
             wx, wy = anc["x"] - origem_x, anc["y"] - origem_y
             self.mapa[int(anc["id"])] = (c * wx + s * wy, -s * wx + c * wy)
 

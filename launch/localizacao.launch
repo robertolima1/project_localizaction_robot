@@ -8,12 +8,27 @@
          (ver scripts/ekf_localizacao_uwb.py e config/ekf_uwb.yaml).
        - trilateracao: geometria pura (sem filtro, sem predição) a partir
          só das âncoras UWB, orientação vinda direto da IMU (ver
-         scripts/localizacao_trilateracao.py e config/trilateracao.yaml). -->
+         scripts/localizacao_trilateracao.py e config/trilateracao.yaml).
+
+     O nó ruido_uwb.py sempre sobe junto (passa-through se sigma_*_extra
+     for 0.0 — padrão) e ekf_uwb/trilateracao sempre assinam a saída dele
+     (/gtec/toa/ranging_ruidoso), não o /gtec/toa/ranging bruto — ver
+     README "Parametrizando ruído para experimentos". -->
 <launch>
   <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
   <arg name="origem_x" default="-0.8"/>
   <arg name="origem_y" default="0.3"/>
   <arg name="origem_yaw" default="0.0"/>
+  <arg name="sigma_range_extra" default="0.0"/>  <!-- m, ruído extra somado ao range do plugin -->
+  <arg name="sigma_angle_extra" default="0.0"/>  <!-- rad, ruído extra somado ao angle do plugin -->
+  <arg name="ranging_topic" default="/gtec/toa/ranging_ruidoso"/>
+  <arg name="n_ancoras" default="10"/>  <!-- qtde de âncoras UWB — ver scripts/layout_ancoras.py -->
+
+  <node pkg="projeto_agrobot_uwb" type="ruido_uwb.py" name="ruido_uwb">
+    <param name="sigma_range_extra" value="$(arg sigma_range_extra)"/>
+    <param name="sigma_angle_extra" value="$(arg sigma_angle_extra)"/>
+    <param name="topico_saida" value="$(arg ranging_topic)"/>
+  </node>
 
   <group if="$(eval metodo == 'robot_localization')">
     <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization_node" clear_params="true">
@@ -27,6 +42,8 @@
       <param name="origem_x" value="$(arg origem_x)"/>
       <param name="origem_y" value="$(arg origem_y)"/>
       <param name="origem_yaw" value="$(arg origem_yaw)"/>
+      <param name="ranging_topic" value="$(arg ranging_topic)"/>
+      <param name="n_ancoras" value="$(arg n_ancoras)"/>
     </node>
   </group>
 
@@ -36,6 +53,8 @@
       <param name="origem_x" value="$(arg origem_x)"/>
       <param name="origem_y" value="$(arg origem_y)"/>
       <param name="origem_yaw" value="$(arg origem_yaw)"/>
+      <param name="ranging_topic" value="$(arg ranging_topic)"/>
+      <param name="n_ancoras" value="$(arg n_ancoras)"/>
     </node>
   </group>
 </launch>

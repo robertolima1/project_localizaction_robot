@@ -147,6 +147,10 @@ roslaunch projeto_agrobot_uwb bringup.launch x:=1.0 y:=0.5 yaw:=1.57
 | `teleop` | `true` | Sobe ou não a janela xterm com o teleop automaticamente. |
 | `gravar` | `true` | Grava ou não o percurso em `bags/percurso_<timestamp>.bag` (ver seção "Gravando um percurso"). |
 | `localizacao` | `robot_localization` | Qual método usa a TF `odom → base_footprint`: `robot_localization`, `ekf_uwb` ou `trilateracao` (ver seção "Localização"). |
+| `mu_rodas` | `0.1` | Atrito das rodas/caster — drift de odometria (ver "Parametrizando ruído para experimentos"). |
+| `gaussian_noise_imu` | `0.01` | Ruído do plugin da IMU. |
+| `sigma_range_extra` | `0.0` | Ruído extra (m) somado ao range UWB. |
+| `sigma_angle_extra` | `0.0` | Ruído extra (rad) somado ao angle UWB. |
 
 ### Verificando se está tudo certo (em outro terminal, com o `bringup.launch` já rodando)
 
@@ -200,8 +204,10 @@ roswtf                               # não deve reportar nenhum ERRO (avisos so
 | `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node`, `ekf_localizacao_uwb` **ou** `localizacao_trilateracao` (ver `localizacao`) |
 | `/gazebo/model_states` | `gazebo_msgs/ModelStates` | publica | Gazebo (pose real, só para comparação manual) |
 | `/gtec/toa/ranging` | `gtec_msgs/Ranging` | publica | plugin `libgtec_uwb_plugin` (externo) |
-| `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina, só com `localizacao:=ekf_uwb` | `ekf_localizacao_uwb.py` |
-| `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina, só com `localizacao:=trilateracao` | `localizacao_trilateracao.py` |
+| `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina | `ruido_uwb.py` (sempre ativo, ver "Parametrizando ruído para experimentos") |
+| `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | publica | `ruido_uwb.py` |
+| `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | assina, só com `localizacao:=ekf_uwb` | `ekf_localizacao_uwb.py` |
+| `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | assina, só com `localizacao:=trilateracao` | `localizacao_trilateracao.py` |
 | `/gtec/toa/anchors` | `visualization_msgs/MarkerArray` | publica | plugin `libgtec_uwb_plugin` (externo) |
 
 ## Localização
@@ -304,25 +310,27 @@ Validar com: `rosrun tf2_tools view_frames.py`.
 ## Ruído de drift nas rodas
 
 Não existe um parâmetro único chamado "drift" — a deriva da odometria de
-rodas neste projeto é **física**, não uma injeção de ruído. Vem de dois
-fatores:
+rodas neste projeto é **física**, não uma injeção de ruído (diferente do
+ruído extra de UWB, esse sim injetado — ver seção "Parametrizando ruído
+para experimentos"). Vem de dois fatores:
 
 **1. Atrito das rodas com o chão** —
-[`urdf/agrobot.gazebo.xacro:15-45`](urdf/agrobot.gazebo.xacro#L15-L45)
+[`urdf/agrobot.gazebo.xacro:17-53`](urdf/agrobot.gazebo.xacro#L17-L53)
 
 ```xml
 <gazebo reference="wheel_left_link">
-  <mu1>0.1</mu1>
-  <mu2>0.1</mu2>
+  <mu1>$(arg mu_rodas)</mu1>
+  <mu2>$(arg mu_rodas)</mu2>
   ...
 ```
 
 Repetido para `wheel_right_link` e `caster_back_link`. `mu1`/`mu2` são os
 coeficientes de atrito ODE (longitudinal/lateral) — quanto **menor**,
 mais a roda pode escorregar fisicamente em vez de rolar sem deslizar.
-Esses valores (`0.1`) vieram copiados sem alteração do
-`turtlebot3_burger.gazebo.xacro` original (é uma cópia, não algo que este
-projeto tenha ajustado — ver comentário no topo do arquivo).
+Parametrizado via `xacro:arg mu_rodas` (repassado pelo `bringup.launch`
+— ver seção "Parametrizando ruído para experimentos"), padrão `0.1`,
+mesmo valor herdado sem alteração do `turtlebot3_burger.gazebo.xacro`
+original.
 
 **2. `odometrySource: encoder`** no plugin `libgazebo_ros_diff_drive`
 (mesmo arquivo, bloco do controlador) — o `/odom` é calculado integrando
@@ -332,12 +340,11 @@ acima), a física "sabe" que o robô não andou tanto quanto o encoder
 registrou — e é exatamente essa diferença que vira erro acumulado em
 `/odom`, o que o EKF tenta (parcialmente) corrigir com o giroscópio.
 
-**Não tem** ruído gaussiano artificial somado à odometria de roda
-(diferente da IMU, que tem `<gaussianNoise>0.01</gaussianNoise>` em
-`agrobot.gazebo.xacro:116`). Se quiser um segundo mecanismo de drift —
-controlável, não só o físico — precisaria adicionar isso na mão (ex.: um
-nó que injeta ruído no `/odom` antes do EKF, ou baixar ainda mais o
-`mu1`/`mu2`).
+**Não tem** ruído gaussiano artificial somado à odometria de roda em si
+(diferente da IMU, que tem `gaussianNoise` — também parametrizado, ver
+abaixo). O único jeito de aumentar o drift de `/odom` é via `mu_rodas`
+(mais escorregão físico) — não existe um segundo mecanismo separado de
+ruído aditivo na odometria.
 
 ### `wheelRadius` / `wheelSeparation`
 
@@ -364,6 +371,43 @@ Se mudar o raio/posição da roda no `agrobot.urdf.xacro` sem atualizar
 `wheelDiameter`/`wheelSeparation` no `agrobot.gazebo.xacro`, o `/odom`
 calculado descola da física real — uma fonte extra de drift, separada do
 atrito, e bem mais fácil de esquecer.
+
+## Parametrizando ruído para experimentos
+
+As três fontes de ruído do projeto (roda, IMU, UWB) são ajustáveis por
+argumento do `bringup.launch`, sem editar nenhum arquivo — pensado para
+rodar várias rodadas de experimento variando só esses valores:
+
+| Argumento | Padrão | Afeta |
+|---|---|---|
+| `mu_rodas` | `0.1` | Atrito das rodas/caster (`mu1`/`mu2`) — quanto menor, mais escorregão físico e mais drift em `/odom` (ver "Ruído de drift nas rodas"). |
+| `gaussian_noise_imu` | `0.01` | `gaussianNoise` do plugin `libgazebo_ros_imu` — mesmo valor aplicado ao giroscópio (rad/s) e ao acelerômetro (m/s²), limitação do plugin (ver comentário em `agrobot.gazebo.xacro`). |
+| `sigma_range_extra` | `0.0` | Desvio-padrão (m) do ruído gaussiano **extra** somado ao `range` de cada `gtec_msgs/Ranging`, além do que o plugin UWB já injeta. |
+| `sigma_angle_extra` | `0.0` | Mesma ideia, para o `angle` (rad). |
+
+```bash
+# Mais drift de roda (mais escorregão) e IMU mais ruidosa
+roslaunch projeto_agrobot_uwb bringup.launch mu_rodas:=0.03 gaussian_noise_imu:=0.03
+
+# UWB com ruído extra, além do que o plugin já simula (LOS/NLOS)
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb sigma_range_extra:=0.1 sigma_angle_extra:=0.1
+```
+
+`mu_rodas` e `gaussian_noise_imu` viram `xacro:arg` (ver
+`urdf/agrobot.gazebo.xacro`) repassados pelo `launch/gazebo.launch` na
+hora de gerar o `robot_description` — mudam a física/o sensor simulado
+de verdade, não só um número num arquivo de config.
+
+`sigma_range_extra`/`sigma_angle_extra` funcionam diferente: o plugin
+UWB (`libgtec_uwb_plugin`, fonte externa) **não expõe nenhum parâmetro
+de ruído** via SDF — os desvios-padrão de range e o erro angular de ~5°
+estão fixos no código C++ dele. Pra poder variar mesmo assim, o
+`localizacao.launch` sempre sobe um nó `scripts/ruido_uwb.py` entre o
+plugin e o EKF/trilateração: ele lê o `/gtec/toa/ranging` bruto, soma o
+ruído extra configurado, e republica em `/gtec/toa/ranging_ruidoso` —
+que é o tópico que `ekf_uwb.py` e `localizacao_trilateracao.py` assinam
+de verdade (`~ranging_topic`). Com os dois em `0.0` (padrão), a saída é
+idêntica à entrada — passa-through, sem mudar o comportamento de antes.
 
 ## Gravando um percurso para analisar a deriva
 
@@ -455,3 +499,36 @@ início mais antigo entre eles:
 ```bash
 rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag bags/ground_truth_XXXX.bag saida.csv
 ```
+
+## Perfilando CPU/memória de um node em execução
+
+O ROS não expõe consumo de CPU/memória por node em nenhum `rostopic`/
+`rosnode` — `scripts/perfil_recursos.py` cobre isso: amostra periodicamente
+o processo de um node já rodando e grava um CSV (`t, cpu_percent, mem_mb`).
+Acha o processo pelo grafo ROS (nome do node), não casando texto contra
+`ps aux` — chama o método XML-RPC `getPid` que todo node ROS expõe na
+própria URI (o mesmo mecanismo usado internamente por `rosnode kill`), o
+que funciona igual em devel e install space e não confunde processos de
+nome parecido.
+
+```bash
+# com o bringup.launch (ou qualquer node) já rodando em outro terminal:
+rosrun projeto_agrobot_uwb perfil_recursos.py /ekf_localizacao_uwb perfil_ekf.csv
+
+# amostrando mais rápido e com duração limitada
+rosrun projeto_agrobot_uwb perfil_recursos.py /localizacao_trilateracao perfil.csv --intervalo 0.2 --duracao 60
+```
+
+| Argumento | Padrão | Descrição |
+|---|---|---|
+| `node` | — (obrigatório) | Nome do node no grafo ROS (ex.: `/ekf_localizacao_uwb`, `/localizacao_trilateracao`, `/ruido_uwb` — ver `rosnode list` para os disponíveis). Aceita com ou sem a `/` inicial. |
+| `csv_saida` | — (obrigatório) | Caminho do `.csv` a gerar. |
+| `--intervalo` | `0.5` | Período de amostragem, em segundos. |
+| `--duracao` | sem limite | Para automaticamente após N segundos. Sem esse argumento, roda até Ctrl+C ou até o node monitorado terminar (o que vier primeiro). |
+
+Cada amostra é gravada e o arquivo é *flusheado* na hora — não junta tudo
+num buffer só pra escrever no final, então mesmo interrompido no meio o
+CSV parcial já gravado fica utilizável. Mede só o processo do node em si
+(nenhum node deste projeto cria subprocesso, então não há filhos a somar).
+Se o node não existir no grafo ROS, o script termina com uma mensagem de
+erro clara em vez de travar esperando.

@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   xacro
   gazebo_ros
+  gazebo_msgs
   robot_localization
   tf2_ros
   sensor_msgs
@@ -26,6 +27,18 @@ catkin_install_python(PROGRAMS
   scripts/identity.py
   scripts/localizacao_trilateracao.py
   scripts/exemplo_trilateracao.py
+  scripts/ruido_uwb.py
+  scripts/spawn_campo.py
+  scripts/perfil_recursos.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+# layout_ancoras.py não é um node (nunca roda via rosrun/roslaunch) — é um
+# módulo importado pelos scripts acima. install(FILES ...), não PROGRAMS,
+# pra cair no mesmo diretório (necessário em install space; em devel space
+# os scripts resolvem o import via os.path.realpath(__file__), que segue o
+# symlink até scripts/ na árvore fonte).
+install(FILES scripts/layout_ancoras.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
