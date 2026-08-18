@@ -20,19 +20,19 @@ origem_yaw: 0.0
 
 # Sigma_0: incerteza inicial (x/y folgados — a pose de spawn é só uma
 # convenção; theta mais apertado pois o robô nasce alinhado ao eixo do mundo).
-sigma0_diag: [0.0000025, 0.0000025, 0.0000005]
+sigma0_diag: [0.00025, 0.00025, 0.000025]
 
 # R_t (linha 4 da Tabela 7.2): ruído de processo no espaço de estado
 # (x, y, theta), constante — mesma simplificação usada em ekf_local.yaml
 # em vez do modelo V M V^T da seção 5.3.
-r_diag: [0.01, 0.01, 0.01]
+r_diag: [0.1, 0.1, 0.1]
 
 # Q_t: ruído de medida (r, phi). sigma_r em metros, sigma_phi em radianos.
 # Referência: UwbPlugin.cpp injeta ~5° (3-sigma) de erro angular e alguns
 # cm de erro de range em LOS; os valores aqui ficam um pouco folgados
 # porque o filtro não sabe se cada medida foi LOS ou NLOS.
-sigma_r: 0.5
-sigma_phi: 0.0873      # ~5 graus
+sigma_r: 0.7
+sigma_phi: 0.873      # ~5 graus
 
 # Altura da âncora (mundo) e altura efetiva da tag (base_link + offset do
 # plugin) — ver nota [N1] do script: sem essa correção, o range 3D bruto

@@ -113,7 +113,16 @@ class EKFLocalizacaoUWB(object):
         imu_topic = rospy.get_param("~imu_topic", "/imu")
         ranging_topic = rospy.get_param("~ranging_topic", "/gtec/toa/ranging")
 
-        rospy.Subscriber(imu_topic, Imu, self.cb_imu, queue_size=1)
+        # ~usar_odometria_fundida: quando true, odom_topic já é a saída de
+        # um ekf_localization_node (robot_localization) fundindo /odom+/imu
+        # — ver launch/localizacao.launch (arg using_ekf_input). Nesse caso
+        # v E w vêm os dois do twist dessa mensagem só, sem assinar /imu
+        # separado (senão o giro entraria duas vezes: já fundido na
+        # odometria de entrada, e de novo cru pelo cb_imu).
+        self.usar_odometria_fundida = rospy.get_param("~usar_odometria_fundida", False)
+
+        if not self.usar_odometria_fundida:
+            rospy.Subscriber(imu_topic, Imu, self.cb_imu, queue_size=1)
         rospy.Subscriber(odom_topic, Odometry, self.cb_odom, queue_size=1)
         rospy.Subscriber(ranging_topic, Ranging, self.cb_ranging, queue_size=1)
 
@@ -136,7 +145,8 @@ class EKFLocalizacaoUWB(object):
 
         with self.lock:
             self.u[0, 0] = msg.twist.twist.linear.x
-            self.u[1, 0] = self.w_imu
+            self.u[1, 0] = (msg.twist.twist.angular.z if self.usar_odometria_fundida
+                             else self.w_imu)
 
             if self.last_stamp is None:
                 self.last_stamp = stamp

@@ -13,7 +13,19 @@
      O nó ruido_uwb.py sempre sobe junto (passa-through se sigma_*_extra
      for 0.0 — padrão) e ekf_uwb/trilateracao sempre assinam a saída dele
      (/gtec/toa/ranging_ruidoso), não o /gtec/toa/ranging bruto — ver
-     README "Parametrizando ruído para experimentos". -->
+     README "Parametrizando ruído para experimentos".
+
+     using_ekf_input (só afeta metodo=ekf_uwb): quando true, sobe um
+     ekf_localization_node extra (robot_localization, mesma fusão
+     /odom+/imu de config/ekf_local.yaml) como PRÉ-FILTRO de v/w — sem
+     publicar TF (publish_tf sobrescrito p/ false) e com a saída
+     remapeada pra /odometry/local, pra não colidir com o /odometry/filtered
+     que o próprio ekf_localizacao_uwb publica. O ekf_uwb então assina
+     /odometry/local em vez do /odom+/imu crus, aproveitando o modelo de
+     ruído de processo mais completo (V*M*V^T, seção 5.3) do
+     robot_localization em vez do R constante simplificado do ekf_uwb (ver
+     nota sobre isso em config/ekf_uwb.yaml) — só pra v/w, quem continua
+     fazendo a correção absoluta pelas âncoras é o ekf_uwb. -->
 <launch>
   <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
   <arg name="origem_x" default="-0.8"/>
@@ -23,6 +35,7 @@
   <arg name="sigma_angle_extra" default="0.0"/>  <!-- rad, ruído extra somado ao angle do plugin -->
   <arg name="ranging_topic" default="/gtec/toa/ranging_ruidoso"/>
   <arg name="n_ancoras" default="10"/>  <!-- qtde de âncoras UWB — ver scripts/layout_ancoras.py -->
+  <arg name="using_ekf_input" default="false"/>  <!-- ekf_uwb usa /odometry/local (robot_localization) em vez de /odom+/imu crus -->
 
   <node pkg="projeto_agrobot_uwb" type="ruido_uwb.py" name="ruido_uwb">
     <param name="sigma_range_extra" value="$(arg sigma_range_extra)"/>
@@ -36,6 +49,18 @@
     </node>
   </group>
 
+  <!-- Pré-filtro de v/w pro ekf_uwb — ver comentário acima sobre
+       using_ekf_input. Nome de nó e tópico de saída diferentes do bloco
+       robot_localization acima pra nunca colidir (mutuamente exclusivos
+       por metodo, mas mantidos distintos por clareza). -->
+  <group if="$(eval using_ekf_input and metodo == 'ekf_uwb')">
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_localization_node_entrada" clear_params="true">
+      <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_local.yaml"/>
+      <param name="publish_tf" value="false"/>
+      <remap from="odometry/filtered" to="/odometry/local"/>
+    </node>
+  </group>
+
   <group if="$(eval metodo == 'ekf_uwb')">
     <node pkg="projeto_agrobot_uwb" type="ekf_localizacao_uwb.py" name="ekf_localizacao_uwb" output="screen">
       <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_uwb.yaml"/>
@@ -44,6 +69,8 @@
       <param name="origem_yaw" value="$(arg origem_yaw)"/>
       <param name="ranging_topic" value="$(arg ranging_topic)"/>
       <param name="n_ancoras" value="$(arg n_ancoras)"/>
+      <param name="usar_odometria_fundida" value="$(arg using_ekf_input)"/>
+      <param name="odom_topic" value="/odometry/local" if="$(arg using_ekf_input)"/>
     </node>
   </group>
 
