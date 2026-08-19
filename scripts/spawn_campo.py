@@ -15,9 +15,24 @@ localizacao_trilateracao.py e identity.py usam como ANCORAS_PADRAO.
 
 Uma âncora por planta (mesmo x/y): a âncora fica pousada na cabeça da
 planta (altura_ancora=0.35, planta vai de 0 a 0.30 m — base da caixa de
-0.1 m encosta no topo do cilindro, sem sobrepor). Ver worlds/campo_agricola.world
+0.1 m encosta no topo do cilindro, sem sobrepor). altura_ancora precisa
+bater exatamente com o valor usado em ekf_localizacao_uwb.py/
+localizacao_trilateracao.py e config/*.yaml, senão a projeção 3D->2D do
+range (nota [N1]) fica com viés sistemático. Ver worlds/campo_agricola.world
 para o motivo do nome precisar começar com o anchor_prefix do plugin
 ("uwb_anchor") e terminar em número.
+
+PLANTA_SDF e ANCORA_SDF não têm <collision>, só <visual>: o raio de LOS
+do UwbPlugin (tag -> âncora) vai até o CENTRO da âncora — ou seja, o
+alvo do raio fica dentro da própria caixa de colisão dela. Isso batia
+na própria âncora (a planta por baixo também colidia, mas não era a
+causa raiz) antes de alcançar o "destino", classificando toda leitura
+como NLOS_S (soma um offset de calibração de ~+0.2-0.3 m em vez de LOS
+limpo — confirmado observando /gtec/toa/anchors, que colore o marcador
+por tipo, e reproduzido: removendo só a colisão da planta o viés
+continuava idêntico; removendo também a da âncora, virou LOS em todas).
+Sem colisão, planta e âncora continuam visíveis no Gazebo, só não
+bloqueiam raios (nem o próprio, nem o de âncoras vizinhas).
 """
 
 import os
@@ -36,9 +51,6 @@ PLANTA_SDF = """<?xml version="1.0"?>
   <model name="{nome}">
     <static>true</static>
     <link name="link">
-      <collision name="collision">
-        <geometry><cylinder><radius>0.05</radius><length>0.30</length></cylinder></geometry>
-      </collision>
       <visual name="visual">
         <geometry><cylinder><radius>0.05</radius><length>0.30</length></cylinder></geometry>
         <material><ambient>0.13 0.45 0.13 1</ambient><diffuse>0.13 0.45 0.13 1</diffuse></material>
@@ -52,9 +64,6 @@ ANCORA_SDF = """<?xml version="1.0"?>
   <model name="{nome}">
     <static>true</static>
     <link name="link">
-      <collision name="collision">
-        <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
-      </collision>
       <visual name="visual">
         <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
         <material><ambient>1.0 0.5 0.0 1</ambient><diffuse>1.0 0.5 0.0 1</diffuse></material>

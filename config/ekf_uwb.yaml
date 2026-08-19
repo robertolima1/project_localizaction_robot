@@ -31,8 +31,8 @@ r_diag: [0.1, 0.1, 0.1]
 # Referência: UwbPlugin.cpp injeta ~5° (3-sigma) de erro angular e alguns
 # cm de erro de range em LOS; os valores aqui ficam um pouco folgados
 # porque o filtro não sabe se cada medida foi LOS ou NLOS.
-sigma_r: 0.7
-sigma_phi: 0.873      # ~5 graus
+sigma_r: 0.07
+sigma_phi: 0.0873      # ~5 graus
 
 # Altura da âncora (mundo) e altura efetiva da tag (base_link + offset do
 # plugin) — ver nota [N1] do script: sem essa correção, o range 3D bruto

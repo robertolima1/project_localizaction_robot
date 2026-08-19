@@ -72,7 +72,7 @@ class EKFLocalizacaoUWB(object):
         # Ver nota [N1]: projeta o range 3D bruto do plugin (âncora e tag em
         # alturas diferentes) na distância horizontal que o modelo
         # range-bearing 2D espera.
-        altura_ancora = rospy.get_param("~altura_ancora", 1.0)
+        altura_ancora = rospy.get_param("~altura_ancora", 0.35)
         altura_tag = rospy.get_param("~altura_tag", 0.31)
         self.dz2 = (altura_ancora - altura_tag) ** 2
 

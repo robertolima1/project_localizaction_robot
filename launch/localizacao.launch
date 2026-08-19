@@ -36,6 +36,8 @@
   <arg name="ranging_topic" default="/gtec/toa/ranging_ruidoso"/>
   <arg name="n_ancoras" default="10"/>  <!-- qtde de âncoras UWB — ver scripts/layout_ancoras.py -->
   <arg name="using_ekf_input" default="false"/>  <!-- ekf_uwb usa /odometry/local (robot_localization) em vez de /odom+/imu crus -->
+  <arg name="altura_ancora" default="0.35"/>  <!-- TEM que bater com o altura_ancora usado pra spawnar as âncoras (launch/gazebo.launch) — nota [N1] -->
+  <arg name="altura_tag" default="0.31"/>
 
   <node pkg="projeto_agrobot_uwb" type="ruido_uwb.py" name="ruido_uwb">
     <param name="sigma_range_extra" value="$(arg sigma_range_extra)"/>
@@ -71,6 +73,8 @@
       <param name="n_ancoras" value="$(arg n_ancoras)"/>
       <param name="usar_odometria_fundida" value="$(arg using_ekf_input)"/>
       <param name="odom_topic" value="/odometry/local" if="$(arg using_ekf_input)"/>
+      <param name="altura_ancora" value="$(arg altura_ancora)"/>
+      <param name="altura_tag" value="$(arg altura_tag)"/>
     </node>
   </group>
 
@@ -82,6 +86,8 @@
       <param name="origem_yaw" value="$(arg origem_yaw)"/>
       <param name="ranging_topic" value="$(arg ranging_topic)"/>
       <param name="n_ancoras" value="$(arg n_ancoras)"/>
+      <param name="altura_ancora" value="$(arg altura_ancora)"/>
+      <param name="altura_tag" value="$(arg altura_tag)"/>
     </node>
   </group>
 </launch>

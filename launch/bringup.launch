@@ -22,6 +22,8 @@
   <arg name="sigma_range_extra" default="0.0"/>      <!-- m, ruído extra no range UWB -->
   <arg name="sigma_angle_extra" default="0.0"/>      <!-- rad, ruído extra no angle UWB -->
   <arg name="n_ancoras" default="10"/>               <!-- qtde de âncoras UWB (+ plantas) — ver scripts/layout_ancoras.py -->
+  <arg name="altura_ancora" default="0.35"/>         <!-- altura de spawn da âncora — única fonte pra Gazebo e pro dz da nota [N1] (ekf_uwb/trilateracao) -->
+  <arg name="using_ekf_input" default="false"/>      <!-- só com localizacao:=ekf_uwb — ver comentário em launch/localizacao.launch -->
 
   <include file="$(find projeto_agrobot_uwb)/launch/gazebo.launch">
     <arg name="mundo" value="$(arg mundo)"/>
@@ -32,6 +34,7 @@
     <arg name="mu_rodas" value="$(arg mu_rodas)"/>
     <arg name="gaussian_noise_imu" value="$(arg gaussian_noise_imu)"/>
     <arg name="n_ancoras" value="$(arg n_ancoras)"/>
+    <arg name="altura_ancora" value="$(arg altura_ancora)"/>
   </include>
 
   <include file="$(find projeto_agrobot_uwb)/launch/display.launch">
@@ -46,6 +49,8 @@
     <arg name="sigma_range_extra" value="$(arg sigma_range_extra)"/>
     <arg name="sigma_angle_extra" value="$(arg sigma_angle_extra)"/>
     <arg name="n_ancoras" value="$(arg n_ancoras)"/>
+    <arg name="altura_ancora" value="$(arg altura_ancora)"/>
+    <arg name="using_ekf_input" value="$(arg using_ekf_input)"/>
   </include>
 
   <group if="$(arg teleop)">
