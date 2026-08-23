@@ -30,6 +30,7 @@ catkin_install_python(PROGRAMS
   scripts/ruido_uwb.py
   scripts/spawn_campo.py
   scripts/perfil_recursos.py
+  scripts/visita_checkpoints.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

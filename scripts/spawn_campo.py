@@ -13,10 +13,11 @@ nó spawna os pares via serviço /gazebo/spawn_sdf_model, com layout_ancoras
 como fonte única de posições — mesma lista que ekf_localizacao_uwb.py,
 localizacao_trilateracao.py e identity.py usam como ANCORAS_PADRAO.
 
-Uma âncora por planta (mesmo x/y): a âncora fica pousada na cabeça da
-planta (altura_ancora=0.35, planta vai de 0 a 0.30 m — base da caixa de
-0.1 m encosta no topo do cilindro, sem sobrepor). altura_ancora precisa
-bater exatamente com o valor usado em ekf_localizacao_uwb.py/
+Uma âncora por planta, mas não mais no mesmo x/y: a planta fica na grade
+de gerar_plantas() e a âncora fica à frente dela — deslocada em direção
+ao corredor central por gerar_ancoras() (ver layout_ancoras.py) — pra não
+ficar bem em cima/atrás da vegetação. altura_ancora precisa bater
+exatamente com o valor usado em ekf_localizacao_uwb.py/
 localizacao_trilateracao.py e config/*.yaml, senão a projeção 3D->2D do
 range (nota [N1]) fica com viés sistemático. Ver worlds/campo_agricola.world
 para o motivo do nome precisar começar com o anchor_prefix do plugin
@@ -43,7 +44,7 @@ from gazebo_msgs.srv import SpawnModel
 from geometry_msgs.msg import Pose
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from layout_ancoras import N_ANCORAS_PADRAO, gerar_ancoras
+from layout_ancoras import N_ANCORAS_PADRAO, gerar_ancoras, gerar_plantas
 
 
 PLANTA_SDF = """<?xml version="1.0"?>
@@ -88,17 +89,19 @@ def main():
     n_ancoras = rospy.get_param("~n_ancoras", N_ANCORAS_PADRAO)
     altura_planta = rospy.get_param("~altura_planta", 0.30)
     altura_ancora = rospy.get_param("~altura_ancora", 0.35)
+    plantas = {int(p["id"]): p for p in gerar_plantas(n_ancoras)}
     ancoras = rospy.get_param("~ancoras", gerar_ancoras(n_ancoras))
 
     rospy.wait_for_service("/gazebo/spawn_sdf_model")
     spawn = rospy.ServiceProxy("/gazebo/spawn_sdf_model", SpawnModel)
 
     for anc in ancoras:
-        aid, x, y = int(anc["id"]), anc["x"], anc["y"]
+        aid, ax, ay = int(anc["id"]), anc["x"], anc["y"]
+        planta = plantas.get(aid, anc)  # sem planta correspondente: usa a posição da âncora
         spawn("planta_%d" % aid, PLANTA_SDF.format(nome="planta_%d" % aid),
-              "", pose(x, y, altura_planta / 2.0), "world")
+              "", pose(planta["x"], planta["y"], altura_planta / 2.0), "world")
         spawn("uwb_anchor%d" % aid, ANCORA_SDF.format(nome="uwb_anchor%d" % aid),
-              "", pose(x, y, altura_ancora), "world")
+              "", pose(ax, ay, altura_ancora), "world")
 
     rospy.loginfo("spawn_campo: %d pares planta+âncora spawnados (n_ancoras=%d)",
                   len(ancoras), n_ancoras)
