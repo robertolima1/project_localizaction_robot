@@ -69,8 +69,8 @@ class LocalizacaoTrilateracao(object):
     def __init__(self):
         self.lock = threading.Lock()
 
-        origem_x = rospy.get_param("~origem_x", 0.0)
-        origem_y = rospy.get_param("~origem_y", 0.0)
+        origem_x = rospy.get_param("~origem_x", -0.8)
+        origem_y = rospy.get_param("~origem_y", 0.3)
         origem_yaw = rospy.get_param("~origem_yaw", 0.0)
 
         # Mesma conversão mundo->odom do ekf_localizacao_uwb.py — ver nota
@@ -97,13 +97,13 @@ class LocalizacaoTrilateracao(object):
 
         self.tf_broadcaster = tf2_ros.TransformBroadcaster()
         self.pub_odom = rospy.Publisher("/odometry/filtered", Odometry,
-                                        queue_size=10)
+                                        queue_size=1)
 
         imu_topic = rospy.get_param("~imu_topic", "/imu")
         ranging_topic = rospy.get_param("~ranging_topic", "/gtec/toa/ranging")
 
-        rospy.Subscriber(imu_topic, Imu, self.cb_imu, queue_size=50)
-        rospy.Subscriber(ranging_topic, Ranging, self.cb_ranging, queue_size=20)
+        rospy.Subscriber(imu_topic, Imu, self.cb_imu, queue_size=1)
+        rospy.Subscriber(ranging_topic, Ranging, self.cb_ranging, queue_size=   1)
 
         rospy.loginfo("Localização por trilateração (sem filtro) | "
                       "%d âncoras no mapa, mínimo %d por solução",
