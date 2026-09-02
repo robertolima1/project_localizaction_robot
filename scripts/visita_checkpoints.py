@@ -11,6 +11,10 @@ spawnadas (ver scripts/spawn_campo.py).
 Pose atual lida de ~pose_topic (default /odometry/filtered) — funciona com
 qualquer metodo de localização ativo (robot_localization, ekf_uwb ou
 trilateracao publicam todos nesse tópico).
+
+Ao alcançar cada checkpoint, publica o id dele em ~topico_visitas
+(default /checkpoint_visitado, std_msgs/Int32) — scripts/registro_visitas.py
+assina esse tópico e grava as visitas num CSV.
 """
 
 import math
@@ -21,6 +25,7 @@ import threading
 import rospy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Int32
 from tf.transformations import euler_from_quaternion
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -42,9 +47,9 @@ class VisitaCheckpoints(object):
         self.checkpoints = [(int(a["id"]), a["x"], a["y"])
                              for a in sorted(ancoras, key=lambda a: int(a["id"]))]
 
-
+    
         meio = N_ANCORAS_PADRAO // 2
-        self.checkpoints = self.checkpoints[meio:] + self.checkpoints[:meio][::-1]
+        self.checkpoints = self.checkpoints[meio:] + self.checkpoints[:meio][::-1] + [(self.checkpoints[meio:])[0]]
 
         rospy.loginfo(f"Percurso será realizado pela rota {[x[0] for x  in self.checkpoints]}")
         self.tolerancia = rospy.get_param("~tolerancia", 0.10)       # m
@@ -58,8 +63,10 @@ class VisitaCheckpoints(object):
 
         pose_topic = rospy.get_param("~pose_topic", "/odometry/filtered")
         cmd_vel_topic = rospy.get_param("~cmd_vel_topic", "/cmd_vel")
+        topico_visitas = rospy.get_param("~topico_visitas", "/checkpoint_visitado")
 
         self.pub_cmd = rospy.Publisher(cmd_vel_topic, Twist, queue_size=1)
+        self.pub_visita = rospy.Publisher(topico_visitas, Int32, queue_size=10)
         rospy.Subscriber(pose_topic, Odometry, self.cb_pose, queue_size=1)
 
         rospy.loginfo("visita_checkpoints: %d checkpoints, tolerancia=%.2fm, "
@@ -129,6 +136,7 @@ class VisitaCheckpoints(object):
             if chegou:
                 rospy.loginfo("Checkpoint %d alcancado — pausando %.1fs",
                                cid, self.pausa_s)
+                self.pub_visita.publish(Int32(cid))
                 rospy.sleep(self.pausa_s)
             else:
                 rospy.loginfo("Encerrado antes de alcancar o checkpoint %d", cid)

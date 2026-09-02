@@ -7,6 +7,11 @@ __pycache__/
 *.bag
 *.bag.active
 
+# CSVs gerados por scripts/bag_para_csv.py (ex.: saida.csv) e
+# scripts/registro_visitas.py — saída de uma execução específica, não
+# código-fonte.
+*.csv
+
 # Saída do rosrun tf2_tools view_frames.py
 frames.gv
 frames.pdf

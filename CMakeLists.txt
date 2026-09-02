@@ -31,6 +31,7 @@ catkin_install_python(PROGRAMS
   scripts/spawn_campo.py
   scripts/perfil_recursos.py
   scripts/visita_checkpoints.py
+  scripts/registro_visitas.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

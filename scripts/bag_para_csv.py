@@ -3,10 +3,11 @@
 """
 bag_para_csv.py — extrai x, y, yaw de /odom, /odometry/filtered e da pose
 real do robô (/gazebo/model_states, filtrada pelo nome do modelo), mais
-range/angle de cada âncora UWB (/gtec/toa/ranging), de um .bag gravado
-pelo bringup.launch, num único CSV em **formato largo**: uma linha por
-instante de tempo, com colunas separadas por fonte/âncora
-(odom_x, odom_y, odom_yaw, filtrada_x, ..., ground_truth_yaw,
+range/angle de cada âncora UWB (/gtec/toa/ranging) e o id do checkpoint
+alcançado (/checkpoint_visitado, publicado por scripts/visita_checkpoints.py),
+de um .bag gravado pelo bringup.launch, num único CSV em **formato largo**:
+uma linha por instante de tempo, com colunas separadas por fonte/âncora
+(odom_x, odom_y, odom_yaw, filtrada_x, ..., ground_truth_yaw, checkpoint_id,
 anchor0_range, anchor0_angle, anchor1_range, ...) — pronto pra comparar
 tudo lado a lado numa planilha ou no pandas, sem precisar pivotar depois.
 
@@ -27,15 +28,23 @@ de cada mensagem — /gazebo/model_states e o Ranging não têm o mesmo
 referencial de header, então usar o tempo de gravação é o jeito de
 colocar tudo na mesma régua de tempo sem precisar casar timestamps na mão.
 
-As colunas ground_truth_* e anchorN_* só aparecem preenchidas se o .bag
-tiver gravado /gazebo/model_states e /gtec/toa/ranging (o bringup.launch
-grava os dois por padrão — ver launch/bringup.launch). Sem esses tópicos
-em algum dos .bag informados, as colunas correspondentes saem vazias em
-todas as linhas — sem erro, sem aviso. Se precisar juntar uma gravação
-separada desses tópicos (ex.: um .bag antigo, gravado antes de eles
-entrarem no bringup), passe vários arquivos: este script aceita vários
-.bag de uma vez e alinha o tempo pelo instante de início mais antigo
-entre eles, não pelo início de cada bag isoladamente.
+As colunas ground_truth_*, checkpoint_id e anchorN_* só aparecem
+preenchidas se o .bag tiver gravado /gazebo/model_states, /checkpoint_visitado
+e /gtec/toa/ranging, respectivamente (o bringup.launch grava todos por
+padrão — ver launch/bringup.launch). Sem esses tópicos em algum dos .bag
+informados, as colunas correspondentes saem vazias em todas as linhas —
+sem erro, sem aviso. Se precisar juntar uma gravação separada desses
+tópicos (ex.: um .bag antigo, gravado antes de eles entrarem no
+bringup), passe vários arquivos: este script aceita vários .bag de uma
+vez e alinha o tempo pelo instante de início mais antigo entre eles, não
+pelo início de cada bag isoladamente.
+
+checkpoint_id vem de um evento raro (publicado uma única vez por
+scripts/visita_checkpoints.py ao alcançar cada checkpoint), então, se por
+acaso duas mensagens caírem no mesmo intervalo de --resolucao, só a
+primeira é mantida (diferente de odom_*/filtrada_*/ground_truth_*/
+anchorN_*, onde a leitura mais recente do intervalo vence — ver
+agrupar_por_tempo).
 
 Uso:
     rosrun projeto_agrobot_uwb bag_para_csv.py bags/percurso_XXXX.bag saida.csv
@@ -54,6 +63,7 @@ TOPICOS_ODOMETRIA = {
 }
 TOPICO_GROUND_TRUTH = "/gazebo/model_states"
 TOPICO_RANGING = "/gtec/toa/ranging"
+TOPICO_CHECKPOINT = "/checkpoint_visitado"
 
 FONTES_ORDEM = ["odom", "filtrada", "ground_truth"]
 CAMPOS_POSE = ["x", "y", "yaw"]
@@ -65,7 +75,8 @@ def extrair_linhas(caminhos_bag, modelo):
     """Gera (tempo, chave, valores). `chave` é uma fonte de pose
     ("odom"/"filtrada"/"ground_truth", valores = {x, y, yaw}) ou uma
     âncora ("anchorN", valores = {range (m), angle (rad)})."""
-    topicos = list(TOPICOS_ODOMETRIA) + [TOPICO_GROUND_TRUTH, TOPICO_RANGING]
+    topicos = (list(TOPICOS_ODOMETRIA)
+               + [TOPICO_GROUND_TRUTH, TOPICO_RANGING, TOPICO_CHECKPOINT])
     t0 = min(rosbag.Bag(c).get_start_time() for c in caminhos_bag)
     for caminho in caminhos_bag:
         with rosbag.Bag(caminho) as bag:
@@ -75,6 +86,10 @@ def extrair_linhas(caminhos_bag, modelo):
                 if topic == TOPICO_RANGING:
                     yield (tempo, "anchor%d" % msg.anchorId,
                           {"range": msg.range / 1000.0, "angle": msg.angle})
+                    continue
+
+                if topic == TOPICO_CHECKPOINT:
+                    yield (tempo, "checkpoint", {"id": msg.data})
                     continue
 
                 if topic == TOPICO_GROUND_TRUTH:
@@ -96,11 +111,16 @@ def extrair_linhas(caminhos_bag, modelo):
 def agrupar_por_tempo(linhas, resolucao):
     """Agrupa (tempo, chave, valores) por intervalo de --resolucao. Dentro
     do mesmo intervalo, a leitura mais recente de cada chave sobrescreve a
-    anterior. Retorna {intervalo: {chave: valores}}."""
+    anterior — exceto "checkpoint", onde a 1a leitura do intervalo vence
+    (evento raro, ver docstring do módulo). Retorna
+    {intervalo: {chave: valores}}."""
     grupos = {}
     for tempo, chave, valores in linhas:
         intervalo = round(tempo / resolucao) * resolucao
-        grupos.setdefault(intervalo, {})[chave] = valores
+        grupo = grupos.setdefault(intervalo, {})
+        if chave == "checkpoint" and chave in grupo:
+            continue  # evento raro: mantém só a 1a leitura do intervalo
+        grupo[chave] = valores
     return grupos
 
 
@@ -116,6 +136,7 @@ def montar_colunas(grupos):
     })
 
     colunas = [(fonte, campo) for fonte in FONTES_ORDEM for campo in CAMPOS_POSE]
+    colunas.append(("checkpoint", "id"))
     colunas += [("anchor%d" % i, campo)
                for i in ids_ancoras for campo in CAMPOS_RANGING]
     return colunas
