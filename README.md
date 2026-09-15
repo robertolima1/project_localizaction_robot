@@ -409,13 +409,82 @@ que é o tópico que `ekf_uwb.py` e `localizacao_trilateracao.py` assinam
 de verdade (`~ranging_topic`). Com os dois em `0.0` (padrão), a saída é
 idêntica à entrada — passa-through, sem mudar o comportamento de antes.
 
+### Casos de ruído para avaliação
+
+Quatro combinações prontas dos argumentos acima, pra comparar
+EKF/trilateração sob severidade crescente sem ter que escolher os
+valores na mão a cada rodada. `n_ancoras` sobe junto com o ruído em cada
+caso — testa se a cobertura geométrica extra de mais âncoras compensa a
+degradação das medidas (ver `scripts/layout_ancoras.py`):
+
+| Caso | `n_ancoras` | `mu_rodas` | `gaussian_noise_imu` |
+|---|---|---|---|
+| Default | `10` | `0.10` | `0.01` |
+| Simples | `6` | `0.10` | `0.01` |
+| Médio | `8` | `0.06` | `0.02` |
+| Elevado | `10` | `0.03` | `0.03` |
+
+Default é a linha de base: só os próprios padrões do `bringup.launch`
+(`n_ancoras=10`, `mu_rodas=0.1`, `gaussian_noise_imu=0.01`) — referência
+sem nenhum ruído extra pra comparar contra os outros três. Simples usa
+os mesmos `mu_rodas`/`gaussian_noise_imu` do Default (também sem
+degradação), variando só `n_ancoras` — isola o efeito de ter menos
+âncoras, sem somar ruído de roda/IMU; Médio e Elevado aí sim escalam
+`mu_rodas`/`gaussian_noise_imu` junto com `n_ancoras`. `sigma_range_extra`
+e `sigma_angle_extra` ficam de fora dos quatro casos — sempre no padrão
+(`0.0`), sem nenhum ruído extra de UWB além do que o plugin já injeta
+nativamente.
+
+```bash
+# Default (sem ruído extra)
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb \
+  n_ancoras:=10 mu_rodas:=0.10 gaussian_noise_imu:=0.01
+
+# Ruído simples
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb \
+  n_ancoras:=6 mu_rodas:=0.10 gaussian_noise_imu:=0.01
+
+# Ruído médio
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb \
+  n_ancoras:=8 mu_rodas:=0.06 gaussian_noise_imu:=0.02
+
+# Ruído elevado
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb \
+  n_ancoras:=10 mu_rodas:=0.03 gaussian_noise_imu:=0.03
+```
+
+Rodar manualmente os três casos, um de cada vez, exige subir o
+bringup.launch e o percurso à mão a cada rodada. `scripts/rodar_experimentos_ruido.sh`
+automatiza isso: sobe uma simulação headless por caso, dirige o robô
+sozinho pelos checkpoints (`visita_checkpoints.py` — termina sozinho ao
+concluir a rota), encerra a simulação e separa o `.bag` e o `saida.csv`
+de cada rodada em `output/<localizacao>/<caso>/` — uma pasta por método
+de estimação, pra rodar o script de novo com outro `localizacao` sem
+sobrescrever os resultados anteriores:
+
+```bash
+bash scripts/rodar_experimentos_ruido.sh                       # localizacao:=ekf_uwb (padrão)
+bash scripts/rodar_experimentos_ruido.sh trilateracao
+bash scripts/rodar_experimentos_ruido.sh robot_localization
+
+# output/
+#   ekf_uwb/
+#     default/{percurso.bag, saida.csv, bringup.log, visita_checkpoints.log}
+#     simples/{...}
+#     medio/  {...}
+#     elevado/{...}
+#   trilateracao/{default,simples,medio,elevado}/{...}
+#   robot_localization/{default,simples,medio,elevado}/{...}
+```
+
 ## Gravando um percurso para analisar a deriva
 
 O `bringup.launch` já grava automaticamente, sem comando manual: um nó
 `rosbag record` sobe junto com o resto e salva cada percurso em
 `bags/percurso_<timestamp>.bag`, com os tópicos `/odom`, `/imu`,
-`/odometry/filtered`, `/cmd_vel`, `/gtec/toa/ranging` e
-`/gazebo/model_states` (ground truth).
+`/odometry/filtered`, `/cmd_vel`, `/gtec/toa/ranging`,
+`/gazebo/model_states` (ground truth) e `/checkpoint_visitado` (ver
+`scripts/visita_checkpoints.py`).
 
 ```bash
 # comportamento padrão: grava

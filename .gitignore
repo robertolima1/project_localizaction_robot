@@ -16,6 +16,14 @@ __pycache__/
 frames.gv
 frames.pdf
 
+# Resultados de scripts/rodar_experimentos_ruido.sh (bags, CSVs, logs,
+# tabelas .tex geradas ad-hoc) — saída de execuções específicas, não
+# código-fonte. output_ekl/ e output_localization/ são pastas antigas de
+# antes do script separar por output/<localizacao>/.
+/output/
+/output_ekl/
+/output_localization/
+
 # Arquivos de espaço de build/devel/install do catkin, caso este pacote
 # algum dia seja versionado a partir da raiz do workspace em vez de
 # ~/catkin_ws/src/projeto_agrobot_uwb.

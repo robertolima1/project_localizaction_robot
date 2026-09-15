@@ -48,7 +48,7 @@ class VisitaCheckpoints(object):
                              for a in sorted(ancoras, key=lambda a: int(a["id"]))]
 
     
-        meio = N_ANCORAS_PADRAO // 2
+        meio = n_ancoras // 2
         self.checkpoints = self.checkpoints[meio:] + self.checkpoints[:meio][::-1] + [(self.checkpoints[meio:])[0]]
 
         rospy.loginfo(f"Percurso será realizado pela rota {[x[0] for x  in self.checkpoints]}")

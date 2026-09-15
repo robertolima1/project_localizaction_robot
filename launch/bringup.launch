@@ -62,7 +62,7 @@
        gravar:=false se não quiser gerar o arquivo (ex.: teste rápido). -->
   <group if="$(arg gravar)">
     <node pkg="rosbag" type="record" name="rosbag_record_percurso"
-          args="-o $(find projeto_agrobot_uwb)/bags/percurso /odom /imu /odometry/filtered /cmd_vel /gtec/toa/ranging /gazebo/model_states"
+          args="-o $(find projeto_agrobot_uwb)/bags/percurso /odom /imu /odometry/filtered /cmd_vel /gtec/toa/ranging /gazebo/model_states /checkpoint_visitado"
           output="screen"/>
   </group>
 </launch>
