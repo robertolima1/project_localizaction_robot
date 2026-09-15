@@ -29,7 +29,7 @@ sigma0_diag: [0.0025, 0.0025, 0.0025]
 # (x, y, theta), constante — mesma simplificação usada em ekf_local.yaml
 # em vez do modelo V M V^T da seção 5.3.
 # r_diag: [0.01, 0.1, 0.1]
-r_diag: [0.5, 0.5, 0.5]
+r_diag: [0.5, 0.5, 0.5]  # theta sem ruído de processo (a cargo do IMU/odom)
 
 # Q_t: ruído de medida (r, phi). sigma_r em metros, sigma_phi em radianos.
 # Referência: UwbPlugin.cpp injeta ~5° (3-sigma) de erro angular e alguns

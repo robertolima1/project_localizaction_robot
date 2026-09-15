@@ -39,31 +39,12 @@ imu0_config: [false, false, false,   # x,     y,     z      -> IMU não mede pos
               false, false, true,    # vroll, vpitch, vyaw  -> fundir vyaw (giroscópio)
               true,  false, false]   # ax,    ay,    az     -> fundir ax (aceleração longitudinal)
 imu0_differential: false
-imu0_relative: true               # yaw relativo ao heading inicial, não a um norte absoluto
-imu0_remove_gravitational_acceleration: true
+imu0_relative: false               # yaw relativo ao heading inicial, não a um norte absoluto
+imu0_remove_gravitational_acceleration: false
 imu0_queue_size: 10
 
-# --- Ruído de processo ---
-# Coerente com o ruído de sensor escolhido em agrobot.gazebo.xacro (4.2d):
-# a IMU usa um único gaussianNoise=0.01 (rad/s no giro, m/s² no acelerômetro —
-# limitação do plugin libgazebo_ros_imu.so, documentada no xacro). Por isso o
-# processo de yaw/vyaw (índices 5 e 11) usa um processo mais permissivo que o
-# default de exemplo do robot_localization, para não subestimar quanto a
-# orientação real pode variar entre atualizações do filtro; x/y (índices 0,1)
-# ficam com valor moderado, já que são só integrados a partir de vx (não há
-# medição direta de posição em nenhuma fonte).
-process_noise_covariance: [0.05, 0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0.05, 0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0.06, 0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0.03, 0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0.03, 0,    0,     0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0.08, 0,     0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0.025, 0,     0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0.025, 0,    0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0.04, 0,    0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0.01, 0,    0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0.01, 0,    0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0.05, 0,    0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0.02, 0,    0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0.02, 0,
-                            0,    0,    0,    0,    0,    0,    0,     0,     0,    0,    0,    0,    0,    0,    0.02]
+# Sem process_noise_covariance/initial_estimate_covariance aqui: EKF mais
+# simples possível, sem nenhum ajuste manual de ruído — usa os defaults
+# internos do robot_localization (o pacote já cai no mesmo exemplo de
+# matriz que estava hardcoded aqui, exceto os índices 5/11 (yaw/vyaw) que
+# tinham sido deixados mais permissivos manualmente).
