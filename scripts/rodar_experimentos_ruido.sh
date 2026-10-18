@@ -22,7 +22,7 @@
 #
 # Uso (com o workspace catkin já sourced):
 #   bash scripts/rodar_experimentos_ruido.sh [localizacao]
-#     localizacao: robot_localization | ekf_uwb | trilateracao (padrão: ekf_uwb)
+#     localizacao: robot_localization | ekf_uwb | ekf_simples | trilateracao (padrão: ekf_uwb)
 #
 # Variáveis de ambiente opcionais:
 #   GUI=true          mostra o gzclient (padrão: headless)

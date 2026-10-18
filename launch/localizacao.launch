@@ -1,11 +1,17 @@
 <?xml version="1.0"?>
-<!-- Localização: publica odom -> base_footprint. Três fontes alternativas,
+<!-- Localização: publica odom -> base_footprint. Quatro fontes alternativas,
      nunca simultâneas (disputariam a mesma TF) — escolhidas por `metodo`:
        - robot_localization (padrão): ekf_localization_node fundindo
          /odom + /imu, sem referência absoluta (ver config/ekf_local.yaml).
        - ekf_uwb: EKF por correspondência conhecida (Thrun, Tabela 7.2)
-         fundindo /odom + /imu + as âncoras UWB como referência absoluta
-         (ver scripts/ekf_localizacao_uwb.py e config/ekf_uwb.yaml).
+         fundindo /odom + /imu + as âncoras UWB como referência absoluta,
+         com sigma0/R/Q manualmente tunados (ver scripts/ekf_localizacao_uwb.py
+         e config/ekf_uwb.yaml).
+       - ekf_simples: MESMO script do ekf_uwb, mas sem nenhum ajuste manual
+         de ruído — usa os defaults hardcoded no próprio script em vez do
+         sigma0_diag/r_diag/sigma_r/sigma_phi tunados de config/ekf_uwb.yaml
+         (ver config/ekf_uwb_simples.yaml). Serve de comparação: isola o
+         efeito da calibração manual do ekf_uwb.
        - trilateracao: geometria pura (sem filtro, sem predição) a partir
          só das âncoras UWB, orientação vinda direto da IMU (ver
          scripts/localizacao_trilateracao.py e config/trilateracao.yaml).
@@ -27,7 +33,7 @@
      nota sobre isso em config/ekf_uwb.yaml) — só pra v/w, quem continua
      fazendo a correção absoluta pelas âncoras é o ekf_uwb. -->
 <launch>
-  <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
+  <arg name="metodo" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | ekf_simples | trilateracao -->
   <arg name="origem_x" default="-0.8"/>
   <arg name="origem_y" default="0.3"/>
   <arg name="origem_yaw" default="0.0"/>
@@ -73,6 +79,22 @@
       <param name="n_ancoras" value="$(arg n_ancoras)"/>
       <param name="usar_odometria_fundida" value="$(arg using_ekf_input)"/>
       <param name="odom_topic" value="/odometry/local" if="$(arg using_ekf_input)"/>
+      <param name="altura_ancora" value="$(arg altura_ancora)"/>
+      <param name="altura_tag" value="$(arg altura_tag)"/>
+    </node>
+  </group>
+
+  <!-- ekf_simples: mesmo nó do ekf_uwb, só troca o arquivo de parâmetros
+       (config/ekf_uwb_simples.yaml, sem sigma0_diag/r_diag/sigma_r/sigma_phi
+       tunados) — sem pré-filtro using_ekf_input, pra manter simples. -->
+  <group if="$(eval metodo == 'ekf_simples')">
+    <node pkg="projeto_agrobot_uwb" type="ekf_localizacao_uwb.py" name="ekf_localizacao_uwb_simples" output="screen">
+      <rosparam command="load" file="$(find projeto_agrobot_uwb)/config/ekf_uwb_simples.yaml"/>
+      <param name="origem_x" value="$(arg origem_x)"/>
+      <param name="origem_y" value="$(arg origem_y)"/>
+      <param name="origem_yaw" value="$(arg origem_yaw)"/>
+      <param name="ranging_topic" value="$(arg ranging_topic)"/>
+      <param name="n_ancoras" value="$(arg n_ancoras)"/>
       <param name="altura_ancora" value="$(arg altura_ancora)"/>
       <param name="altura_tag" value="$(arg altura_tag)"/>
     </node>

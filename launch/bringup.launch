@@ -11,7 +11,7 @@
   <arg name="rviz" default="true"/>
   <arg name="teleop" default="true"/>
   <arg name="gravar" default="true"/>
-  <arg name="localizacao" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | trilateracao -->
+  <arg name="localizacao" default="robot_localization"/>  <!-- robot_localization | ekf_uwb | ekf_simples | trilateracao -->
 
   <!-- Ruído — parametrizado para variar entre rodadas de experimento sem
        editar arquivo nenhum (ver README "Parametrizando ruído para

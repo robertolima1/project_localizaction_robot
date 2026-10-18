@@ -1,0 +1,31 @@
+# Parâmetros do ekf_localizacao_uwb.py — versão "simples", sem nenhum
+# ajuste manual de ruído (sigma0_diag/r_diag/sigma_r/sigma_phi): usa os
+# defaults hardcoded no próprio script (ver rospy.get_param(..., X) em
+# ekf_localizacao_uwb.py). Escolhida via `metodo:=ekf_simples` do
+# localizacao.launch. Ver config/ekf_uwb.yaml pra comparação com a
+# versão manualmente tunada.
+
+odom_topic: /odom
+imu_topic: /imu
+ranging_topic: /gtec/toa/ranging
+odom_frame: odom
+base_frame: base_footprint
+publish_tf: true
+max_dt: 1.0          # s; descarta saltos de tempo do /odom
+eps_w: 1.0e-3        # satura w perto de zero p/ evitar divisão por zero
+
+# Pose de spawn do robô no frame do mundo Gazebo (mesmos x/y/yaw do
+# gazebo.launch). O bringup.launch já repassa os valores automaticamente;
+# só precisa editar aqui se rodar localizacao.launch isolado com spawn != 0.
+origem_x: 0.0
+origem_y: 0.0
+origem_yaw: 0.0
+
+# Altura da âncora (mundo) e altura efetiva da tag — ver nota [N1] do
+# script (config/ekf_uwb.yaml tem a explicação completa).
+altura_ancora: 0.35
+altura_tag: 0.31
+
+# Mapa m: posições das âncoras — mesma fonte única de config/ekf_uwb.yaml
+# (scripts/layout_ancoras.py via n_ancoras, repassado pelo bringup.launch).
+n_ancoras: 10

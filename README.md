@@ -146,7 +146,7 @@ roslaunch projeto_agrobot_uwb bringup.launch x:=1.0 y:=0.5 yaw:=1.57
 | `rviz` | `true` | Abre ou não o RViz. |
 | `teleop` | `true` | Sobe ou não a janela xterm com o teleop automaticamente. |
 | `gravar` | `true` | Grava ou não o percurso em `bags/percurso_<timestamp>.bag` (ver seção "Gravando um percurso"). |
-| `localizacao` | `robot_localization` | Qual método usa a TF `odom → base_footprint`: `robot_localization`, `ekf_uwb` ou `trilateracao` (ver seção "Localização"). |
+| `localizacao` | `robot_localization` | Qual método usa a TF `odom → base_footprint`: `robot_localization`, `ekf_uwb`, `ekf_simples` ou `trilateracao` (ver seção "Localização"). |
 | `mu_rodas` | `0.1` | Atrito das rodas/caster — drift de odometria (ver "Parametrizando ruído para experimentos"). |
 | `gaussian_noise_imu` | `0.01` | Ruído do plugin da IMU. |
 | `sigma_range_extra` | `0.0` | Ruído extra (m) somado ao range UWB. |
@@ -201,26 +201,27 @@ roswtf                               # não deve reportar nenhum ERRO (avisos so
 | `/e_stop` | `std_msgs/Bool` | publica (status observável) | `teleop_teclado.py` |
 | `/odom` | `nav_msgs/Odometry` | publica | plugin `libgazebo_ros_diff_drive` |
 | `/imu` | `sensor_msgs/Imu` | publica | plugin `libgazebo_ros_imu` |
-| `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node`, `ekf_localizacao_uwb` **ou** `localizacao_trilateracao` (ver `localizacao`) |
+| `/odometry/filtered` | `nav_msgs/Odometry` | publica | `ekf_localization_node`, `ekf_localizacao_uwb` (`ekf_uwb`/`ekf_simples`) **ou** `localizacao_trilateracao` (ver `localizacao`) |
 | `/gazebo/model_states` | `gazebo_msgs/ModelStates` | publica | Gazebo (pose real, só para comparação manual) |
 | `/gtec/toa/ranging` | `gtec_msgs/Ranging` | publica | plugin `libgtec_uwb_plugin` (externo) |
 | `/gtec/toa/ranging` | `gtec_msgs/Ranging` | assina | `ruido_uwb.py` (sempre ativo, ver "Parametrizando ruído para experimentos") |
 | `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | publica | `ruido_uwb.py` |
-| `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | assina, só com `localizacao:=ekf_uwb` | `ekf_localizacao_uwb.py` |
+| `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | assina, só com `localizacao:=ekf_uwb` ou `ekf_simples` | `ekf_localizacao_uwb.py` |
 | `/gtec/toa/ranging_ruidoso` | `gtec_msgs/Ranging` | assina, só com `localizacao:=trilateracao` | `localizacao_trilateracao.py` |
 | `/gtec/toa/anchors` | `visualization_msgs/MarkerArray` | publica | plugin `libgtec_uwb_plugin` (externo) |
 
 ## Localização
 
 `launch/localizacao.launch` publica a TF `odom → base_footprint` e o
-tópico `/odometry/filtered`, através de **um entre três métodos
+tópico `/odometry/filtered`, através de **um entre quatro métodos
 alternativos** (nunca dois ao mesmo tempo — disputariam a mesma TF),
 escolhido pelo argumento `localizacao` do `bringup.launch`:
 
 | `localizacao` | Nó | Fontes fundidas | Referência absoluta? |
 |---|---|---|---|
 | `robot_localization` (padrão) | `ekf_localization_node` | `/odom` + `/imu` | Não — dead reckoning puro (ver "Ruído de drift nas rodas"). |
-| `ekf_uwb` | `scripts/ekf_localizacao_uwb.py` | `/odom` + `/imu` + `/gtec/toa/ranging` | Sim — EKF (Tabela 7.2) fundindo as âncoras UWB. |
+| `ekf_uwb` | `scripts/ekf_localizacao_uwb.py` | `/odom` + `/imu` + `/gtec/toa/ranging` | Sim — EKF (Tabela 7.2) fundindo as âncoras UWB, com `sigma0`/`R`/`Q` manualmente calibrados (`config/ekf_uwb.yaml`). |
+| `ekf_simples` | `scripts/ekf_localizacao_uwb.py` (mesmo script) | `/odom` + `/imu` + `/gtec/toa/ranging` | Sim, mesmo EKF do `ekf_uwb`, mas **sem nenhum ajuste manual de ruído** (`config/ekf_uwb_simples.yaml`) — usa os defaults hardcoded no próprio script. |
 | `trilateracao` | `scripts/localizacao_trilateracao.py` | `/imu` (só orientação) + `/gtec/toa/ranging` | Sim, mas sem filtro nenhum — geometria pura, sem predição nem covariância real. |
 
 ```bash
@@ -228,8 +229,12 @@ escolhido pelo argumento `localizacao` do `bringup.launch`:
 roslaunch projeto_agrobot_uwb bringup.launch
 
 # EKF com correspondência conhecida (Thrun, Tabela 7.2), usando as âncoras
-# UWB como mapa de referência absoluta
+# UWB como mapa de referência absoluta, com ruído manualmente calibrado
 roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_uwb
+
+# Mesmo EKF acima, mas sem nenhuma calibração manual de ruído — usa os
+# defaults hardcoded no script (ver "ekf_simples" abaixo)
+roslaunch projeto_agrobot_uwb bringup.launch localizacao:=ekf_simples
 
 # Trilateração básica (sem filtro), só com as âncoras UWB
 roslaunch projeto_agrobot_uwb bringup.launch localizacao:=trilateracao
@@ -249,6 +254,18 @@ script.
 
 Parâmetros de `ekf_uwb.yaml` que provavelmente valem a pena calibrar:
 `sigma_r`/`sigma_phi` (ruído de medida) e `r_diag` (ruído de processo).
+
+`ekf_simples` roda exatamente o mesmo `ekf_localizacao_uwb.py`, só que
+com `config/ekf_uwb_simples.yaml` em vez de `config/ekf_uwb.yaml`: esse
+arquivo só define o que é estrutural (tópicos, frames, mapa de âncoras)
+e **não define** `sigma0_diag`/`r_diag`/`sigma_r`/`sigma_phi` — sem
+esses parâmetros, o script cai nos próprios defaults hardcoded
+(`rospy.get_param("~x", default)`), que são bem menores/mais otimistas
+que os valores calibrados manualmente em `ekf_uwb.yaml`. Serve pra
+isolar o efeito da calibração manual: comparar `ekf_uwb` vs
+`ekf_simples` no mesmo experimento mostra o quanto a calibração de
+`sigma0`/`R`/`Q` importa pro resultado, além da comparação entre
+métodos de localização diferentes.
 
 `trilateracao` é o algoritmo de geometria pura em
 `scripts/exemplo_trilateracao.py` (ver docstring lá) plugado no ROS: a
